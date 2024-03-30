@@ -24,7 +24,7 @@ def mc4_ja_part_loader():
                         )
 
 def refinedweb_en_loader():
-    return load_dataset("tiiuae/falcon-refinedweb", 'content', split='train',
+    return load_dataset("tiiuae/falcon-refinedweb", split='train', field="text",
                         streaming=streaming
                         )
 
