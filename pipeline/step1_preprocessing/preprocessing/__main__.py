@@ -82,9 +82,9 @@ def filtering(input_dir: str, output_base: str):
 def main():
     parser = argparse.ArgumentParser(description='Process some documents.')
     parser.add_argument('--input_dir', type=str,
-                        help='The input directory containing documents to process', required=False, default="/home/ubuntu/ucllm_nedo_prod_kawagoshi/data_management/output/datasets")
+                        help='The input directory containing documents to process', required=False, default="~/ucllm_nedo_prod/pipeline/step0_download_upload_datasets/output/refinedweb")
     parser.add_argument('--output_dir', type=str,
-                        help='The input file containing documents to process', required=False, default="/home/ubuntu/ucllm_nedo_prod_kawagoshi/data_management/output")
+                        help='The input file containing documents to process', required=False, default="~/ucllm_nedo_prod_kawagoshi/data_management/output")
     args = parser.parse_args()
 
     #start = datetime.now()

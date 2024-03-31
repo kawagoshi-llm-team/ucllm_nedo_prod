@@ -11,7 +11,8 @@ OUTPUT_PATH = os.path.join(ROOT_PATH, "output")
 def parse_args():
     parser = argparse.ArgumentParser(description="Download dataset")
     parser.add_argument("--dataset", type=str, help="Dataset to download", default="refinedweb")
-    parser.add_argument("--split", type=str, default="", help="Dataset split to download")
+    parser.add_argument("--split", type=str, default="train", help="Dataset split to download")
+    parser.add_argument("--streaming", type=bool, default=True, help="Streaming mode")
     parser.add_argument("--index_from", type=int, default=1, help="Index to start downloading")
     parser.add_argument("--index_to", type=int, default=100, help="Index to stop downloading")
     parser.add_argument("--max_datasize", type=int, default=100, help="max_datasize to download")
@@ -22,9 +23,11 @@ def parse_args():
 def main():
     args = parse_args()
     max_data_size = args.max_datasize
+    streaming = args.streaming
+    split = args.split
     
     if args.dataset == "refinedweb":
-        loader = refinedweb_en_loader()
+        loader = refinedweb_en_loader(streaming=streaming, split=split)
         if max_data_size == -1:
             max_data_size = 968000015
         text_list = iter(loader)
@@ -33,7 +36,7 @@ def main():
         content = "content"
 
     if args.dataset == "slimpajama":
-        loader = slimpajama_en_loader()
+        loader = slimpajama_en_loader(streaming=streaming, split=split)
         if max_data_size == -1:
             max_data_size = 2159581000
         text_list = iter(loader)

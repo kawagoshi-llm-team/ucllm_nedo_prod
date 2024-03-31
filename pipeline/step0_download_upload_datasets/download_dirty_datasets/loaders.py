@@ -23,12 +23,12 @@ def mc4_ja_part_loader():
                         streaming=streaming,
                         )
 
-def refinedweb_en_loader():
-    return load_dataset("tiiuae/falcon-refinedweb", split='train', field="text",
+def refinedweb_en_loader(streaming=True, split='train'):
+    return load_dataset("tiiuae/falcon-refinedweb", split=split,
                         streaming=streaming
                         )
 
-def slimpajama_en_loader():
-    return load_dataset("cerebras/SlimPajama-627B", split='train[0%:10%]', 
+def slimpajama_en_loader(streaming=False, split='train[0%:1%]'):
+    return load_dataset("cerebras/SlimPajama-627B", split=split, 
                         streaming=streaming,
                         )
