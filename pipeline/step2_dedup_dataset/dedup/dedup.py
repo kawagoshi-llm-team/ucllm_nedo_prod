@@ -65,13 +65,11 @@ def dedup_minhashlsh(input_dir: str, output_base: str):
 def main():
     parser = argparse.ArgumentParser(description='Process some documents.')
     parser.add_argument('--input_dir', type=str,
-                        help='The input directory containing documents to process', required=False, default="../step1_preprocessing/output/filterd_documents")
+                        help='The input directory containing documents to process', required=False, default="../step1_merge_datasets/output")
     parser.add_argument('--output_dir', type=str,
                         help='The input file containing documents to process', required=False, default="./output")
     args = parser.parse_args()
 
-    #start = datetime.now()
-    #output_base = os.path.join(args.output_dir, start.strftime("%Y%m%d%H%M%S"))
     output_base = os.path.join(args.output_dir, "debuped_documents")
     dedup_minhashlsh(input_dir=args.input_dir, output_base=output_base)
 
