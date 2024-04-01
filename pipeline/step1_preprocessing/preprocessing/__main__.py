@@ -4,8 +4,7 @@ import json
 from hojichar import document_filters, tokenization, Compose, Document
 import os
 
-from preprocessing.filtering import custom_token_filters, custom_tokenization, custom_document_filters
-
+from preprocessing import custom_token_filters, custom_tokenization, custom_document_filters
 
 def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
     remained_lines = []
@@ -20,13 +19,12 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
         custom_tokenization.NewLineSentenceTokenizer(), # 改行文字で文章を区切る.
         custom_token_filters.RemoveOneword(), # 1単語のみ以下のパターンを削除.
         custom_tokenization.MergeTokens(delimiter="\n"), # 破棄されていないトークンをdelimeterで結合.
-        custom_tokenization.WakatiTokenizer(), # fugashi を用いて文を分割.
+        #custom_tokenization.WakatiTokenizer(), # fugashi を用いて文を分割.
         custom_token_filters.RemoveDate(), # 日付のみのパターンを削除.
         tokenization.MergeTokens(), # 破棄されていないトークンを結合.
-        custom_document_filters.SelectJapanese(lookup_size=50), # 日本語以外の文書を排除.
+        #custom_document_filters.SelectJapanese(lookup_size=50), # 日本語以外の文書を排除.
         document_filters.MaskPersonalInformation(), # キュメントに含まれる電話番号・電子メールアドレスを一部マスキング.
-        document_filters.JSONDumper(dump_reason=True), # ドキュメントの破棄事由をJSON形式で付与して出力. JSON形式で出力するため、最後に実行する. # デバッグ用
-        # （出力textがjsonになり、その後jsonに変換してresults.filtering.jsonlに保存するため、おかしくなる）
+        document_filters.JSONDumper(dump_reason=False), # dump_reason=Tureの場合、ドキュメントの破棄事由をJSON形式で付与して出力. JSON形式で出力するため、最後に実行する.（デバッグ用）
     ])
 
     with open(os.path.join(output_base, "rejected.filtering.jsonl"), "w") as rejected:
@@ -82,9 +80,9 @@ def filtering(input_dir: str, output_base: str):
 def main():
     parser = argparse.ArgumentParser(description='Process some documents.')
     parser.add_argument('--input_dir', type=str,
-                        help='The input directory containing documents to process', required=False, default="~/ucllm_nedo_prod/pipeline/step0_download_upload_datasets/output/refinedweb")
+                        help='The input directory containing documents to process', required=False, default="../step0_download_datasets/output/refinedweb")
     parser.add_argument('--output_dir', type=str,
-                        help='The input file containing documents to process', required=False, default="~/ucllm_nedo_prod_kawagoshi/data_management/output")
+                        help='The input file containing documents to process', required=False, default="./output")
     args = parser.parse_args()
 
     #start = datetime.now()

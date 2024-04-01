@@ -1,7 +1,7 @@
 # Appends a path to import python scripts that are in other directories.
 import os
 import sys
-sys.path.append(os.path.join(os.environ["HOME"], "ucllm_nedo_prod_kawagoshi/train/scripts/common/"))
+sys.path.append(os.path.join(os.environ["HOME"], "ucllm_nedo_prod/pipeline/common/"))
 
 import argparse
 import sentencepiece as spm
@@ -10,7 +10,8 @@ from special_token_list import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, CLS_TOKEN, SEP_T
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, required=False, default="/home/ubuntu/ucllm_nedo_prod_kawagoshi/pipeline/4_dedup_dataset/output")
+    parser.add_argument("--input", type=str, required=False, default="../step2_dedup_dataset/output/debuped_documents/results.dedup.jsonl")
+    parser.add_argument("--output_base", type=str, required=False, default="./output")
     parser.add_argument("--model_prefix", type=str, required=False, default="botchan")
     parser.add_argument("--vocab_size", type=int, required=False, default=8000)
     parser.add_argument("--character_coverage", type=float, default=0.9995)
@@ -24,11 +25,14 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
+    if not os.path.exists(args.output_base):
+        os.makedirs(args.output_base)
+    model_prefix = os.path.join(args.output_base, args.model_prefix)
 
     # Trains a SentencePiece tokenizer. After training, *.model and *.vocab will be saved in the current directory.
     spm.SentencePieceTrainer.train(
         input=args.input,
-        model_prefix=args.model_prefix,
+        model_prefix=model_prefix,
         vocab_size=args.vocab_size,
         character_coverage=args.character_coverage,
         model_type=args.model_type,
