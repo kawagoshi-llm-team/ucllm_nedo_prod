@@ -44,22 +44,22 @@ def integrate_data(output_file="merge_text.jsonl", type="llama", batch_size=10):
     dataset_dict = {
         "wiki(ja)": {
             "loader": test_wiki_ja_loader, #日本語版のwikipediaのloaderを使います｡
-            "n_records": MAX_RECORDS, #最大件数（type: llamaではstage_n_recordsを使用）
+            #"n_records": MAX_RECORDS, #最大件数（type: mergeではstage_n_recordsを使用）
             "stage_ratio": [2, 3], # 各ステージでのデータ配分
         },
 
         "mc4(ja)": {
             "loader": test_mc4_ja_loader,
-            "n_records": MAX_RECORDS, #最大件数（type: llamaではstage_n_recordsを使用）
+            #"n_records": MAX_RECORDS, #最大件数（type: llamaではstage_n_recordsを使用）
             "stage_ratio": [2, 2],
         },
     }
-    if type == "BTM":
+    if type == "distribute":
         distributor = RecordDistributor(dataset_dict)
         distributor.load_datasets()
         distributor.write_jsonl(os.path.join(OUTPUT_BASE, output_file), overwrite=OVERWRITE)
 
-    elif type == "llama":
+    elif type == "merge":
         # https://www.anlp.jp/proceedings/annual_meeting/2024/pdf_dir/A11-5.pdf
         distributor = RecordMerger(dataset_dict, stage_n_records, batch_size=batch_size)
         distributor.load_datasets()
@@ -69,10 +69,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process merge texts.')
     parser.add_argument('--output_file', type=str,
                         help='The output file name', required=False, default="merge_text.jsonl")
-    parser.add_argument('--batch_size', type=str,
+    parser.add_argument('--batch_size', type=int,
                         help='set batch size', required=False, default=10)
+    parser.add_argument('--type', type=str,
+                        help='merge type', required=False, default="merge")
     args = parser.parse_args()
     output_file = args.output_file
     batch_size = args.batch_size
+    merge_type = args.type
 
-    integrate_data(output_file=output_file, type = "llama", batch_size=batch_size)
+    integrate_data(output_file=output_file, type=merge_type, batch_size=batch_size)

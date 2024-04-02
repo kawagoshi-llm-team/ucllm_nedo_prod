@@ -4,7 +4,7 @@ set -e
 echo ""
 
 # Stores the directory paths as variables.
-ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_dev/train"
+ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_prod/pipeline"
 megatron_deepspeed_dir="${ucllm_nedo_dev_train_dir}/Megatron-DeepSpeed"
 echo "ucllm_nedo_dev_train_dir = ${ucllm_nedo_dev_train_dir}"
 echo "megatron_deepspeed_dir = ${megatron_deepspeed_dir}"
@@ -65,7 +65,7 @@ model_size=0.125
 num_layers=12
 hidden_size=768
 num_attn_heads=12
-global_batch_size=256
+global_batch_size=56
 lr=6.0e-4
 min_lr=1.0e-6
 init_std=0.02
@@ -235,7 +235,9 @@ num_workers=0
 
 # If either arxiv_text_document.bin or arxiv_text_document.idx doesn't exist yet,
 # then downloads arxiv.jsonl and preprocesses the data.
-data_path="${megatron_deepspeed_dir}/dataset/arxiv_text_document"
+#data_path="${megatron_deepspeed_dir}/dataset/arxiv_text_document"
+data_path="~/ucllm_nedo_prod/pipeline/step4_pretrain_model/input/tokenized_data_text_document"
+
 if [ ! -f "${data_path}.bin" ] || [ ! -f "${data_path}.idx" ]; then
     echo "Either ${data_path}.bin or ${data_path}.idx doesn't exist yet, so download arxiv.jsonl and preprocess the data."
     wget https://data.together.xyz/redpajama-data-1T/v1.0.0/arxiv/arxiv_024de5df-1b7f-447c-8c3a-51407d8d6732.jsonl \
@@ -323,7 +325,7 @@ megatron_options=" \
     --load ${checkpoint_path} \
     --save ${checkpoint_path} \
     --no-async-tensor-model-parallel-allreduce \
-    --use-flash-attn-v2 \
+    --use-flash-attn \
     --tensorboard-queue-size 1 \
     --log-timers-to-tensorboard \
     --log-batch-size-to-tensorboard \
