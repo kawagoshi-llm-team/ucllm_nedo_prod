@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 from hojichar import document_filters, tokenization, Compose, Document
 import os
+import gzip
 
 from preprocessing import custom_token_filters, custom_tokenization, custom_document_filters
 
@@ -46,7 +47,7 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
 
 
 def __readlines(input_file: str):
-    with open(input_file) as fp:
+    with gzip.open(input_file, "rt") as fp:
         return fp.readlines()
 
 
@@ -54,7 +55,7 @@ def filtering(input_dir: str, output_base: str):
     os.makedirs(output_base, exist_ok=True)
 
     file_lines = {input_file: __readlines(os.path.join(input_dir, input_file))
-                  for input_file in os.listdir(input_dir) if input_file.endswith(".jsonl")}
+                  for input_file in os.listdir(input_dir) if input_file.endswith(".jsonl.gz")}
 
     stats = []
     for input_file, json_lines in file_lines.items():
@@ -65,13 +66,13 @@ def filtering(input_dir: str, output_base: str):
         lines = process_json_lines(json_lines, output_base_for_input, stats)
         file_lines[input_file] = lines
 
-    with open(os.path.join(output_base, "results.filtering.jsonl"), "w", encoding="utf8") as writer:
+    with gzip.open(os.path.join(output_base, "results.filtering.jsonl.gz"), "wt") as writer:
         for _, lines in file_lines.items():
             for line in lines:
                 json.dump(line, writer, ensure_ascii=False)
                 writer.write("\n")
 
-    with open(os.path.join(output_base, "stats.filtering.jsonl"), "w", encoding="utf8") as writer:
+    with gzip.open(os.path.join(output_base, "stats.filtering.jsonl.gz"), "wt") as writer:
         for stat in stats:
             json.dump(stat, writer, ensure_ascii=False)
             writer.write("\n")
@@ -80,7 +81,7 @@ def filtering(input_dir: str, output_base: str):
 def main():
     parser = argparse.ArgumentParser(description='Process some documents.')
     parser.add_argument('--input_dir', type=str,
-                        help='The input directory containing documents to process', required=False, default="../step00_download_datasets/output/wiki_ja")
+                        help='The input directory containing documents to process', required=False, default="../step00_download_datasets/output/mc4_ja")
     parser.add_argument('--output_dir', type=str,
                         help='The input file containing documents to process', required=False, default="./output")
     args = parser.parse_args()
