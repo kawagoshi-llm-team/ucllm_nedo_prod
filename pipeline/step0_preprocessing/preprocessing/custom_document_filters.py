@@ -1,3 +1,4 @@
+import bz2file as bz2
 from hojichar import document_filters, Document
 from fugashi import Tagger
 
