@@ -310,8 +310,8 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 (.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step4_finetune_model/
 
 # ファインチューニングスクリプトを実行。 (HuggingFaceにアップロードした事前学習モデルをダウンロードして使用する場合)
-(.venv) $ bash ./gcp_play_node-1_gpu/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-none_zero-none.sh --input_model_name_or_path ${YOUR_HUGGINGFACE_USERNAME}/gpt_0.125B_global_step1000 \
-    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
+(.venv) $ bash ./gcp_play_node-1_gpu/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-none_zero-none.sh --input_model_name_or_path kawagoshi-llm-team/gpt_0.125B_global_step100\
+    --output_tokenizer_and_model_dir ~/ucllm_nedo_prod/pipeline/step6_finetune_model/output/gpt_0.125B_global_step100_openassistant/
 
 # ファインチューニングスクリプトを実行。 (ローカルに保存してある事前学習モデルをそのまま使用する場合)
 (.venv) $ bash ./gcp_play_node-1_gpu/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-none_zero-none.sh --input_model_name_or_path ~/ucllm_nedo_dev/train/output/step3_upload_pretrained_model/gpt_0.125B_global_step1000/ \
@@ -330,7 +330,7 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 
 # アップロードスクリプトを実行。
 (.venv) $ python ./upload_tokenizer_and_finetuned_model_to_huggingface_hub.py \
-    --input_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/ \
-    --output_model_name gpt_0.125B_global_step1000_openassistant \
+    --input_tokenizer_and_model_dir ~/ucllm_nedo_prod/pipeline/step6_finetune_model/output/gpt_0.125B_global_step100_openassistant/ \
+    --output_model_name gpt_0.125B_global_step100_openassistant \
     --test_prompt_text "Once upon a time,"
 ```

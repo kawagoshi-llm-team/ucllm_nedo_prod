@@ -63,15 +63,14 @@ current_time=$(date "+%Y.%m.%d_%H.%M.%S")
 # --fp16 \
 #    --instruction_template "### Human:" \
 #    --response_template "### Assistant:" \
+#  --per_device_train_batch_size 8 \
+#   --gradient_accumulation_steps 8 \
 accelerate launch --config_file ${ucllm_nedo_dev_train_dir}/llm-jp-sft/configs/accelerate_config_zero1.yaml \
     ${ucllm_nedo_dev_train_dir}/llm-jp-sft/train.py \
     --num_train_epochs 2 \
-    --per_device_train_batch_size 8 \
-    --gradient_accumulation_steps 8 \
     --learning_rate 1e-5 \
     --warmup_ratio 0.1 \
     --lr_scheduler_type cosine \
-    --fp16 \
     --max_seq_length 2048 \
     --logging_steps 1 \
     --data_files ${dataset_file} \
