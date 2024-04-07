@@ -4,7 +4,7 @@ set -e
 echo ""
 
 # Stores the directory paths as variables.
-ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_dev/train"
+ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_prod/pipeline"
 megatron_deepspeed_dir="${ucllm_nedo_dev_train_dir}/Megatron-DeepSpeed"
 echo "ucllm_nedo_dev_train_dir = ${ucllm_nedo_dev_train_dir}"
 echo "megatron_deepspeed_dir = ${megatron_deepspeed_dir}"
@@ -44,7 +44,7 @@ echo ""
 mkdir -p ${output_tokenizer_and_model_dir}
 
 # Converts the tokenizer from SentencePiece format to HuggingFace Transformers format.
-python ${ucllm_nedo_dev_train_dir}/scripts/step3_upload_pretrained_model/convert_tokenizer_from_sentencepiece_to_huggingface_transformers.py \
+python ${ucllm_nedo_dev_train_dir}/step5_upload_pretrained_model/convert_tokenizer_from_sentencepiece_to_huggingface_transformers.py \
     --input_tokenizer_file ${input_tokenizer_file} \
     --output_tokenizer_dir ${output_tokenizer_and_model_dir}
 

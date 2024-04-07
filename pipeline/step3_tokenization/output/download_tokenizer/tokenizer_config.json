@@ -1,64 +1,56 @@
 {
-  "add_prefix_space": true,
+  "add_prefix_space": false,
   "added_tokens_decoder": {
-    "0": {
-      "content": "<unk>",
+    "100257": {
+      "content": "<|endoftext|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
       "single_word": false,
       "special": true
     },
-    "1": {
-      "content": "<s>",
+    "100258": {
+      "content": "<|fim_prefix|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
       "single_word": false,
       "special": true
     },
-    "2": {
-      "content": "</s>",
+    "100259": {
+      "content": "<|fim_middle|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
       "single_word": false,
       "special": true
     },
-    "3": {
-      "content": "<pad>",
+    "100260": {
+      "content": "<|fim_suffix|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
       "single_word": false,
       "special": true
     },
-    "4": {
-      "content": "<CLS>",
+    "100264": {
+      "content": "<|im_start|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
       "single_word": false,
       "special": true
     },
-    "5": {
-      "content": "<SEP>",
+    "100265": {
+      "content": "<|im_end|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
       "single_word": false,
       "special": true
     },
-    "6": {
-      "content": "<EOD>",
-      "lstrip": false,
-      "normalized": false,
-      "rstrip": false,
-      "single_word": false,
-      "special": true
-    },
-    "7": {
-      "content": "<MASK>",
+    "100276": {
+      "content": "<|endofprompt|>",
       "lstrip": false,
       "normalized": false,
       "rstrip": false,
@@ -66,21 +58,11 @@
       "special": true
     }
   },
-  "additional_special_tokens": [
-    "<EOD>"
-  ],
-  "bos_token": "<s>",
-  "clean_up_tokenization_spaces": true,
-  "cls_token": "<CLS>",
-  "eos_token": "</s>",
-  "extra_ids": 0,
-  "legacy": true,
-  "mask_token": "<MASK>",
-  "model_max_length": 2048,
-  "pad_token": "<pad>",
-  "sep_token": "<SEP>",
-  "sp_model_kwargs": {},
-  "split_special_tokens": true,
-  "tokenizer_class": "T5Tokenizer",
-  "unk_token": "<unk>"
+  "bos_token": "<|endoftext|>",
+  "chat_template": "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}",
+  "clean_up_tokenization_spaces": false,
+  "eos_token": "<|endoftext|>",
+  "model_max_length": 8192,
+  "tokenizer_class": "GPT2Tokenizer",
+  "unk_token": "<|endoftext|>"
 }

@@ -11,7 +11,7 @@ def slimpajama_en_loader(streaming=False, split='train[0%:1%]'):
                         )
 
 def test_wiki_ja_loader(streaming=True, split='train'):
-    return load_dataset("kawagoshi-llm-team/test_preprocessed_wiki_dataset", split=split,
+    return load_dataset("kawagoshi-llm-team/test_preprocessed_wiki_dataset_gz", split=split,
                         streaming=streaming
                         )
 

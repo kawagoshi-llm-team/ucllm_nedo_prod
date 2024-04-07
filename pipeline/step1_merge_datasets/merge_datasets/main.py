@@ -68,7 +68,7 @@ def integrate_data(output_file="merge_text.jsonl", type="llama", batch_size=10):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process merge texts.')
     parser.add_argument('--output_file', type=str,
-                        help='The output file name', required=False, default="merge_text.jsonl")
+                        help='The output file name', required=False, default="merge_text.jsonl.gz")
     parser.add_argument('--batch_size', type=int,
                         help='set batch size', required=False, default=10)
     parser.add_argument('--type', type=str,

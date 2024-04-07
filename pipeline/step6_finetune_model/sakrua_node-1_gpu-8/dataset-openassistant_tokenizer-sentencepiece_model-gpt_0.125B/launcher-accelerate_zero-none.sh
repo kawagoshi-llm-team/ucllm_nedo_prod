@@ -4,7 +4,7 @@ set -e
 echo ""
 
 # Stores the directory paths as variables.
-ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_dev/train"
+ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_prod/pipeline"
 megatron_deepspeed_dir="${ucllm_nedo_dev_train_dir}/Megatron-DeepSpeed"
 echo "ucllm_nedo_dev_train_dir = ${ucllm_nedo_dev_train_dir}"
 echo "megatron_deepspeed_dir = ${megatron_deepspeed_dir}"
@@ -59,6 +59,10 @@ host="${HOSTNAME}"
 current_time=$(date "+%Y.%m.%d_%H.%M.%S")
 
 # Finetunes the pretrained model.
+# --bf16 \
+# --fp16 \
+#    --instruction_template "### Human:" \
+#    --response_template "### Assistant:" \
 accelerate launch --config_file ${ucllm_nedo_dev_train_dir}/llm-jp-sft/configs/accelerate_config_zero1.yaml \
     ${ucllm_nedo_dev_train_dir}/llm-jp-sft/train.py \
     --num_train_epochs 2 \
@@ -67,14 +71,13 @@ accelerate launch --config_file ${ucllm_nedo_dev_train_dir}/llm-jp-sft/configs/a
     --learning_rate 1e-5 \
     --warmup_ratio 0.1 \
     --lr_scheduler_type cosine \
-    --bf16 \
+    --fp16 \
     --max_seq_length 2048 \
     --logging_steps 1 \
     --data_files ${dataset_file} \
     --model_name_or_path ${input_model_name_or_path} \
     --output_dir ${output_tokenizer_and_model_dir} \
-    --instruction_template "### Human:" \
-    --response_template "### Assistant:" \
+
     2>&1 | tee ${log_path}/${host}_${current_time}.log
 
 echo ""

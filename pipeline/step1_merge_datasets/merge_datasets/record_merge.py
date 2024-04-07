@@ -3,6 +3,7 @@ import numpy as np
 import random
 import json
 from tqdm import tqdm
+import gzip
 
 class RecordMerger:
     def __init__(self, dataset_dict, stage_n_records, batch_size=1) -> None:
@@ -48,7 +49,7 @@ class RecordMerger:
 
     def write_jsonl(self, output_path, overwrite=True):
         if overwrite:
-            with open(output_path, "w") as f:
+            with gzip.open(output_path, "wt") as f:
                 f.write("")
         else:
             if os.path.exists(output_path):
@@ -75,7 +76,7 @@ class RecordMerger:
                 if len(text_list) % self.batch_size == 0 and len(text_list) != 0:
                     random.shuffle(text_list)
 
-                    with open(output_path, "a") as f:
+                    with gzip.open(output_path, "at") as f:
                         for text in text_list:
                             out_text = json.dumps({"text": text}, ensure_ascii=False)
                             f.write(out_text+"\n")

@@ -2,7 +2,6 @@
 
 set -e
 echo ""
-
 # Stores the directory paths as variables.
 ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_prod/pipeline"
 megatron_deepspeed_dir="${ucllm_nedo_dev_train_dir}/Megatron-DeepSpeed"
@@ -236,7 +235,7 @@ num_workers=0
 # If either arxiv_text_document.bin or arxiv_text_document.idx doesn't exist yet,
 # then downloads arxiv.jsonl and preprocesses the data.
 #data_path="${megatron_deepspeed_dir}/dataset/arxiv_text_document"
-data_path="~/ucllm_nedo_prod/pipeline/step4_pretrain_model/input/tokenized_data_text_document"
+data_path="${HOME}/ucllm_nedo_prod/pipeline/step4_pretrain_model/input/tokenized_data_text_document"
 
 if [ ! -f "${data_path}.bin" ] || [ ! -f "${data_path}.idx" ]; then
     echo "Either ${data_path}.bin or ${data_path}.idx doesn't exist yet, so download arxiv.jsonl and preprocess the data."

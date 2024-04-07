@@ -10,7 +10,8 @@ from special_token_list import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, CLS_TOKEN, SEP_T
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, required=False, default="../step2_dedup_dataset/output/debuped_documents/results.dedup.jsonl")
+    # gzは解凍しておく
+    parser.add_argument("--input", type=str, required=False, default="../step00_download_datasets/output/refinedweb/refinedweb.jsonl")
     parser.add_argument("--output_base", type=str, required=False, default="./output")
     parser.add_argument("--model_prefix", type=str, required=False, default="botchan")
     parser.add_argument("--vocab_size", type=int, required=False, default=8000)
@@ -27,6 +28,7 @@ def main():
     args = parse_arguments()
     if not os.path.exists(args.output_base):
         os.makedirs(args.output_base)
+        
     model_prefix = os.path.join(args.output_base, args.model_prefix)
 
     # Trains a SentencePiece tokenizer. After training, *.model and *.vocab will be saved in the current directory.

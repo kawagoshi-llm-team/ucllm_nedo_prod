@@ -3,6 +3,7 @@ import numpy as np
 import random
 import json
 from tqdm import tqdm
+import gzip
 
 
 def update_records_per_stage(dataset_dict):
@@ -73,7 +74,7 @@ class RecordDistributor:
     def write_jsonl(self, output_path, overwrite=True):
         self.init_iterators()
         if overwrite:
-            with open(output_path, "w") as f:
+            with gzip.open(output_path, "w") as f:
                 f.write("")
         else:
             if os.path.exists(output_path):
@@ -100,7 +101,7 @@ class RecordDistributor:
                 if batch_cnt == self.batch_size-1:
                     random.shuffle(text_list)
 
-                    with open(output_path, "a") as f:
+                    with gzip.open(output_path, "a") as f:
                         for text in text_list:
                             out_text = json.dumps({"text": text}, ensure_ascii=False)
                             f.write(out_text+"\n")

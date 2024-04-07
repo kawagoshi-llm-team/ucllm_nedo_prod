@@ -277,19 +277,19 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 ### Step 3-1. トークナイザーと事前学習済みモデルのHuggingFace Transformers形式への変換
 
 ```sh
-(.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step3_upload_pretrained_model/
+(.venv) $ cd ~/ucllm_nedo_prod/pipeline/step5_upload_pretrained_model/
 
 # 変換スクリプトを実行。
 (.venv) $ bash ./convert_tokenizer_and_pretrained_model_to_huggingface_transformers.sh \
-    --input_tokenizer_file ~/ucllm_nedo_dev/train/output/step1_train_tokenizer/botchan/botchan.model \
-    --input_model_dir ~/ucllm_nedo_dev/train/output/step2_pretrain_model/checkpoint/gpt_0.125B_${YOUR_JOBNAME}/global_step1000/ \
-    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step3_upload_pretrained_model/gpt_0.125B_global_step1000/
+    --input_tokenizer_file ~/ucllm_nedo_prod/pipeline/step3_tokenization/output/botchan.model \
+    --input_model_dir ~/ucllm_nedo_prod/pipeline/step4_pretrain_model/checkpoint/gpt_0.125B_${YOUR_JOBNAME}/global_step100/ \
+    --output_tokenizer_and_model_dir ~/ucllm_nedo_prod/pipeline/step5_upload_pretrained_model/output/gpt_0.125B_global_step100/
 ```
 
 ### Step 3-2. トークナイザーと事前学習済みモデルのHuggingFace Hubへのアップロード
 
 ```sh
-(.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step3_upload_pretrained_model/
+(.venv) $ cd ~/ucllm_nedo_prod/pipeline/step5_upload_pretrained_model/
 
 # HuggingFaceにログイン。
 # https://huggingface.co/settings/tokens --> 書き込み権限ありのAPIキーをコピペ。
@@ -300,8 +300,8 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 
 # アップロードスクリプトを実行。
 (.venv) $ python ./upload_tokenizer_and_pretrained_model_to_huggingface_hub.py \
-    --input_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step3_upload_pretrained_model/gpt_0.125B_global_step1000/ \
-    --output_model_name gpt_0.125B_global_step1000 \
+    --input_tokenizer_and_model_dir ~/ucllm_nedo_prod/pipeline/step5_upload_pretrained_model/output/gpt_0.125B_global_step100/ \
+    --output_model_name gpt_0.125B_global_step100 \
     --test_prompt_text "Once upon a time,"
 ```
 
@@ -310,17 +310,17 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 ### Step 4-1. ファインチューニングの実行
 
 ```sh
-(.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step4_finetune_model/
+(.venv) $ cd ~/ucllm_nedo_prod/pipeline/step6_finetune_model/
 
 # ファインチューニングスクリプトを実行。 (HuggingFaceにアップロードした事前学習モデルをダウンロードして使用する場合)
 (.venv) $ bash ./sakrua_node-1_gpu-8/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-accelerate_zero-none.sh \
-    --input_model_name_or_path ${YOUR_HUGGINGFACE_USERNAME}/gpt_0.125B_global_step1000 \
-    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
+    --input_model_name_or_path kawagoshi-llm-team/gpt_0.125B_global_step100 \
+    --output_tokenizer_and_model_dir ~/ucllm_nedo_prod/pipeline/step6_finetune_model/output/gpt_0.125B_global_step100_openassistant/
 
 # ファインチューニングスクリプトを実行。 (ローカルに保存してある事前学習モデルをそのまま使用する場合)
 (.venv) $ bash ./sakrua_node-1_gpu-8/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-accelerate_zero-none.sh \
-    --input_model_name_or_path ~/ucllm_nedo_dev/train/output/step3_upload_pretrained_model/gpt_0.125B_global_step1000/ \
-    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
+    --input_model_name_or_path ~/ucllm_nedo_prod/pipeline/step5_upload_pretrained_model/output/gpt_0.125B_global_step100/ \
+    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step100_openassistant/
 ```
 
 ## Step 5. ファインチューニング済みモデルのアップロード

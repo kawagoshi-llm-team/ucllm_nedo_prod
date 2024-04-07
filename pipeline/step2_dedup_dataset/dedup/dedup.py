@@ -3,6 +3,7 @@ import json
 from hojichar import document_filters, deduplication, Compose, Document
 import os
 from datetime import datetime
+import gzip
 
 
 def exec_hojichar_deduplication(lines: list[str], output_base: str, stats: list[dict]):
@@ -38,10 +39,10 @@ def dedup_minhashlsh(input_dir: str, output_base: str):
     os.makedirs(output_base, exist_ok=True)
     remained_lines, stats = [], []
     for input_file in os.listdir(input_dir):
-        if not input_file.endswith(".jsonl"):
+        if not input_file.endswith(".jsonl.gz"):
             continue
 
-        with open(os.path.join(input_dir, input_file)) as fp:
+        with gzip.open(os.path.join(input_dir, input_file), "rt") as fp:
             json_lines = fp.readlines()
 
         input_file_prefix = os.path.splitext(os.path.basename(input_file))[0]
@@ -51,12 +52,12 @@ def dedup_minhashlsh(input_dir: str, output_base: str):
         remained_lines.append(exec_hojichar_deduplication(
             json_lines, output_base=output_base_for_input, stats=stats))
 
-    with open(os.path.join(output_base, "results.dedup.jsonl"), "w", encoding="utf8") as writer:
+    with gzip.open(os.path.join(output_base, "results.dedup.jsonl.gz"), "wt", encoding="utf8") as writer:
         for lines in remained_lines:
             for line in lines:
                 writer.write(line + "\n")
 
-    with open(os.path.join(output_base, "stats.dedup.jsonl"), "w", encoding="utf8") as writer:
+    with gzip.open(os.path.join(output_base, "stats.dedup.jsonl.gz"), "wt", encoding="utf8") as writer:
         for stat in stats:
             writer.write(json.dumps(stat, ensure_ascii=False))
             writer.write("\n")

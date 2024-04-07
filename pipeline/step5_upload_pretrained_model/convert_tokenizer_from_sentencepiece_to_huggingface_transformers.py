@@ -1,7 +1,7 @@
 # Appends a path to import python scripts that are in other directories.
 import os
 import sys
-sys.path.append(os.path.join(os.environ["HOME"], "ucllm_nedo_dev/train/scripts/common/"))
+sys.path.append(os.path.join(os.environ["HOME"], "ucllm_nedo_prod/pipeline/common/"))
 
 
 import argparse

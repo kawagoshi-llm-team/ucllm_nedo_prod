@@ -5,7 +5,7 @@ output_prefix=~/ucllm_nedo_prod/pipeline/step4_pretrain_model/input/tokenized_da
 #$(yq -r '.output_prefix' config.yaml)
 megatron_deepspeed_dir=~/ucllm_nedo_prod/pipeline/Megatron-DeepSpeed
 #$(yq -r '.megatron_deepspeed_dir' config.yaml)
-input_jsonl=~/ucllm_nedo_prod/pipeline/step2_dedup_dataset/output/debuped_documents/results.dedup.jsonl
+input_jsonl=~/ucllm_nedo_prod/pipeline/step00_download_datasets/output/refinedweb/refinedweb.jsonl
 #$(yq -r '.input_jsonl' config.yaml)
 input_tokenizer_file=~/ucllm_nedo_prod/pipeline/step3_tokenization/output/botchan.model
 #$(yq -r '.input_tokenizer_file' config.yaml)

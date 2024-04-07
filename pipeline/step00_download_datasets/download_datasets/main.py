@@ -10,11 +10,11 @@ OUTPUT_PATH = os.path.join(ROOT_PATH, "output")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Download dataset")
-    parser.add_argument("--dataset", type=str, help="Dataset to download", default="mc4-ja")
+    parser.add_argument("--dataset", type=str, help="Dataset to download", default="refinedweb")
     parser.add_argument("--split", type=str, default="train", help="Dataset split to download")
     parser.add_argument("--streaming", type=bool, default=True, help="Streaming mode")
     parser.add_argument("--index_from", type=int, default=0, help="Index to start downloading")
-    parser.add_argument("--index_to", type=int, default=100, help="Index to stop downloading")
+    parser.add_argument("--index_to", type=int, default=10000000000, help="Index to stop downloading")
 
     return parser.parse_args()
 
