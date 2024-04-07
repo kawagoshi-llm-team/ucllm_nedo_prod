@@ -2,7 +2,7 @@ from hojichar import document_filters, Document
 from fugashi import Tagger
 
 import unicodedata
-from gensim.models import FastText
+from gensim.models.fasttext import FastText
 import numpy as np
 
 from os import PathLike
