@@ -1,10 +1,9 @@
+import bz2file as bz2
 from hojichar import document_filters, Document
 from fugashi import Tagger
-#from ftlangdetect import detect
-
 from hojichar.core.filter_interface import Filter
 import unicodedata
-from gensim.models import FastText
+#from gensim.models.fasttext import FastText
 import numpy as np
 
 from os import PathLike
@@ -39,7 +38,7 @@ class DiscardAdultContentJa(document_filters.NgWordsFilterJa):
             doc.is_rejected = True # adult keywordsの割合が閾値を超えたらreject
 
         return doc
-    
+
 class DiscardWithCharacterRatio(Filter):
     """
     TokenFilter の実装例です.
