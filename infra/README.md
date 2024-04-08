@@ -72,6 +72,23 @@ $ sbatch myjob.sh
 Submitted batch job 4
 ```
 
+The following statement will be displayed when the maximum number of batch submissions is reached.
+```
+sbatch: error: AssocGrpSubmitJobsLimit
+sbatch: error: Batch job submission failed: Job violates accounting/QOS policy (job submit limit, user's size and/or time limits)
+```
+
+If the specified maximum number of nodes has been reached, the following will be displayed in the NODELIST(REASON) column of the squeue command.
+```
+PartitionNodeLimit
+```
+
+If the specified execution time limit has been reached, the NODELIST(REASON) column of the squeue command will display the following.
+```
+AssocMaxWallDurationPerJobLimit
+```
+
+
 ### Check status
 
 Check the status of all jobs:
