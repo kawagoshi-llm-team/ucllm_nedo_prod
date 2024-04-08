@@ -44,11 +44,11 @@ echo "${NHOSTS}"
 
 mp_size=1
 pp_size=1
-zero_stage=0
+zero_stage=1
 no_pp="false"
 ## Total number of GPUs.
 num_gpus_pernode=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-num_node=1 #"${NHOSTS}"
+num_node=2 #"${NHOSTS}"
 echo "num_node = ${num_node}"
 
 num_gpus=$((${num_gpus_pernode} * ${num_node}))
@@ -66,10 +66,9 @@ seed=1234
 MASTER_ADDR=localhost
 MASTER_PORT=6000
 host="${HOSTNAME}"
-NODE_RANK=${hostname##*-}
-NODE_RANK=$((NODE_RANK - 1))
+NODE_RANK=${SLURM_NODEID}
 
-#Mistral 0.3B
+#Llama 0.3B
 HIDDEN_SIZE=1024 # e.g. mistral-7b: 4096
 FFN_HIDDEN_SIZE=4096 # e.g. mistral-7b: 14337
 NUM_LAYERS=12 # e.g. mistral-7b: 32 
@@ -261,7 +260,7 @@ megatron_options=" \
     --log-batch-size-to-tensorboard \
     --log-validation-ppl-to-tensorboard \
     --tensorboard-dir ${tensorboard_path} \
-    --exit-duration-in-mins ${exit_duration}"
+    --exit-duration-in-mins ${exit_duration} "
 
 if [ "${activation_checkpoint}" = "true" ]; then
 megatron_options="${megatron_options} \
@@ -273,8 +272,43 @@ megatron_options="${megatron_options} \
     --log-optimizer-states-to-tensorboard"
 fi
 
-deepspeed ${megatron_deepspeed_dir}/pretrain_gpt.py \
+echo creating host file
+
+# Creates a hostfile.
+script_dir=$(dirname "$0")
+hostfile="${script_dir}/hostfile_jobid-${SLURM_JOB_ID}"
+nodes=$(scontrol show hostnames $SLURM_JOB_NODELIST)
+
+# host fileが残っている場合は消す。
+if [ -f "$hostfile" ]; then
+  mv "$hostfile" "${hostfile}.tmp"
+  touch "$hostfile"
+  cat "${hostfile}.tmp" >> "$hostfile"
+  rm "${hostfile}.tmp"
+else
+  touch "$hostfile"
+fi
+
+echo $nodes
+for node in $nodes
+do
+  gpu_count=$(ssh ${node} "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l")
+  echo "${node} slots=${gpu_count}" >> "${hostfile}"
+  ssh $node "source ~/.bashrc"
+  ssh $node 'source ~/miniconda3/etc/profile.d/conda.sh && conda activate .venv'
+done #> "${hostfile}"
+
+echo "hostfile = ${hostfile}"
+cat ${hostfile}
+echo ""
+
+#megatron_options="${megatron_options} --distribute"
+
+log_file="${log_path}/${jobname}_${host}_${current_time}_${SLURM_PROCID}.log"
+
+deepspeed --hostfile ${hostfile} \
+    ${megatron_deepspeed_dir}/pretrain_gpt.py \
     ${megatron_options} \
     ${data_options} \
     ${deepspeed_options} \
-    2>&1 | tee ${log_path}/${jobname}_${host}_${current_time}.log
+    2>&1 | tee "${log_file}"

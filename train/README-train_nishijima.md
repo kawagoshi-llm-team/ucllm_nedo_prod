@@ -208,6 +208,10 @@ Tokenizerはllm-jpのものを使用　./Ucllm_nedo_prod/train/scripts/dataset�
 (.venv) $ bash ./pre_dev/pretrain_llama2_1node.sh \
     --output_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/${YourName}/llama2-0.3B \
     --save_interval 200
+
+# Mistral 系列の場合は以下を事前に実行
+# Megatron-deepspeedのattention関連のファイルを書き換え。
+(.venv) $ bash ./pre_dev/setup.sh  \
 ```
 
 ### Step 2. でのトラブルシューティング
@@ -273,7 +277,8 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
     --input_tokenizer_file ~/ucllm_nedo_dev/train/dataset/code10k_en20k_ja30k.ver2.1.model \
     --input_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/${YourName}/llama2-0.3B/checkpoint/${Your_JobName}/ \
     --output_tokenizer_and_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/${YourName}/llama2-0.3B/checkpoint/${Your_JobName}/step3_upload_pretrained_model/ \
-    --temp_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/${YourName}/llama2-0.3B/checkpoint/${Your_JobName}/temp/
+    --temp_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/${YourName}/llama2-0.3B/checkpoint/${Your_JobName}/temp/ \
+    --model_name Llama2 or Mistral
 ```
 
 ### Step 3-2. トークナイザーと事前学習済みモデルのHuggingFace Hubへのアップロード
@@ -287,6 +292,10 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 
 # HuggingFaceにログインしていることを確認。
 (.venv) $ huggingface-cli whoami
+
+
+# Megatron-deepspeedのファイルを書き換え。
+(.venv) $ bash ./setup.sh \
 
 # アップロードスクリプトを実行。
 (.venv) $ python ./upload_tokenizer_and_pretrained_model_to_huggingface_hub.py \

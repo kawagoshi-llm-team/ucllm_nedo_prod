@@ -22,7 +22,7 @@ import types
 
 import torch
 
-from transformers import LlamaConfig
+from transformers import LlamaConfig, MistralConfig
 from transformers.modeling_utils import WEIGHTS_INDEX_NAME, WEIGHTS_NAME, shard_checkpoint
 
 
@@ -47,6 +47,12 @@ def add_checkpointing_args(parser):
         type=str,
         required=True,
         help="Path to the converted checkpoint.",
+    )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        required=True,
+        help="model name to the converted checkpoint (Llama2 or Mistral).",
     )
     parser.add_argument("--print-checkpoint-structure", action="store_true")
 
@@ -422,27 +428,50 @@ def convert_checkpoint_from_megatron_to_transformers(args: argparse.Namespace) -
         dtype = torch.bfloat16
     print(f"dtype : {dtype}")
 
-    config = LlamaConfig(
-        bos_token_id=1,
-        eos_token_id=2,
-        pretraining_tp=1,
-        hidden_act='silu',
-        hidden_size=megatron_args.hidden_size,
-        num_key_value_heads=megatron_args.num_key_value_heads,
-        intermediate_size=megatron_args.ffn_hidden_size,
-        initializer_range=0.02,
-        max_sequence_length=megatron_args.seq_length,
-        max_position_embeddings=megatron_args.seq_length,
-        model_type='llama',
-        num_attention_heads=megatron_args.num_attention_heads,
-        num_hidden_layers=megatron_args.num_layers,
-        pad_token_id=0,
-        rms_norm_eps=megatron_args.layernorm_epsilon,
-        torch_dtype=dtype,
-        use_cache=True,
-        vocab_size=vocab_size,
-        architectures=["LLaMAForCausalLM"],
-    )
+    if args.model_name == "Llama2":
+        config = LlamaConfig(
+            bos_token_id=1,
+            eos_token_id=2,
+            pretraining_tp=1,
+            hidden_act='silu',
+            hidden_size=megatron_args.hidden_size,
+            num_key_value_heads=megatron_args.num_key_value_heads,
+            intermediate_size=megatron_args.ffn_hidden_size,
+            initializer_range=0.02,
+            max_sequence_length=megatron_args.seq_length,
+            max_position_embeddings=megatron_args.seq_length,
+            model_type='llama',
+            num_attention_heads=megatron_args.num_attention_heads,
+            num_hidden_layers=megatron_args.num_layers,
+            pad_token_id=0,
+            rms_norm_eps=megatron_args.layernorm_epsilon,
+            torch_dtype=dtype,
+            use_cache=True,
+            vocab_size=vocab_size,
+            architectures=["LLaMAForCausalLM"],
+        )
+    if args.model_name == "Mistral":
+        config = MistralConfig(
+            bos_token_id=1,
+            eos_token_id=2,
+            pretraining_tp=1,
+            hidden_act='silu',
+            hidden_size=megatron_args.hidden_size,
+            num_key_value_heads=megatron_args.num_key_value_heads,
+            intermediate_size=megatron_args.ffn_hidden_size,
+            initializer_range=0.02,
+            max_sequence_length=megatron_args.seq_length,
+            max_position_embeddings=megatron_args.seq_length,
+            model_type='Mistral',
+            num_attention_heads=megatron_args.num_attention_heads,
+            num_hidden_layers=megatron_args.num_layers,
+            pad_token_id=0,
+            rms_norm_eps=megatron_args.layernorm_epsilon,
+            torch_dtype=dtype,
+            use_cache=True,
+            vocab_size=vocab_size,
+            architectures=["MistralForCausalLM"],
+        )
 
     print(f"config :{config}")
 
