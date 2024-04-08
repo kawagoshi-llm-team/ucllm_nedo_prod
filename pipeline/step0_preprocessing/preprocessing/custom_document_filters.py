@@ -129,8 +129,8 @@ class DiscardAdultContentWithEmbedding(Filter):
         **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.dict_path = "/home/kei.tsukamoto/fastText/cc.ja.300.bin" #自分が入れているfastTextのパスに変えてください
-        self.adult_embedding_path = "/home/kei.tsukamoto/ucllm_nedo_prod/pipeline/step0_preprocessing/preprocessing/adult_embedding_avg.npy"
+        self.dict_path = "/persistentshare/storage/team_kawagoshi/fastText"
+        self.adult_embedding_path = "./preprocessing/adult_embedding_avg.npy"
         self.adult_embedding = np.load(self.adult_embedding_path)
         self.adult_threshold = adult_threshold
         self.model = FastText.load_fasttext_format(self.dict_path)
