@@ -18,7 +18,7 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
         document_filters.DocumentLengthFilter(min_doc_len=10, max_doc_len=100000), # 文書の長さがmin_doc_lenより短い、またはmax_doc_lenより長い文書を破棄.
         #custom_document_filters.DiscardAdultContentJa(), # 日本語の成人向けコンテンツを閾値に応じて排除.
         custom_document_filters.DiscardWithCharacterRatio(),
-        #custom_document_filters.DiscardAdultContentWithEmbedding(),
+        custom_document_filters.DiscardAdultContentWithEmbedding(),
         custom_tokenization.NewLineSentenceTokenizer(), # 改行文字で文章を区切る.
         custom_token_filters.RemoveOneword(), # 1単語のみ以下のパターンを削除.
         custom_tokenization.MergeTokens(delimiter="\n"), # 破棄されていないトークンをdelimeterで結合.

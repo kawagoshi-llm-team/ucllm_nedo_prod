@@ -1,9 +1,8 @@
-import bz2file as bz2
 from hojichar import document_filters, Document
 from fugashi import Tagger
 from hojichar.core.filter_interface import Filter
 import unicodedata
-#from gensim.models.fasttext import FastText
+from gensim.models.fasttext import FastText
 import numpy as np
 
 from os import PathLike
