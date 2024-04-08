@@ -129,11 +129,11 @@ class DiscardAdultContentWithEmbedding(Filter):
         **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.dict_path = "/persistentshare/storage/team_kawagoshi/fastText"
+        self.model_path = "/persistentshare/storage/team_kawagoshi/fastText/cc.ja.300.bin"
         self.adult_embedding_path = "./preprocessing/adult_embedding_avg.npy"
         self.adult_embedding = np.load(self.adult_embedding_path)
         self.adult_threshold = adult_threshold
-        self.model = FastText.load_fasttext_format(self.dict_path)
+        self.model = FastText.load_fasttext_format(self.model_path)
 
     def calculate_inappropriate_score(self, sentence):
         text_owakati = tagger.parse(sentence).split()
