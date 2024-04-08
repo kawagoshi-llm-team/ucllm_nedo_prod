@@ -30,6 +30,8 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
         document_filters.JSONDumper(dump_reason=False), # dump_reason=Tureの場合、ドキュメントの破棄事由をJSON形式で付与して出力. JSON形式で出力するため、最後に実行する.（デバッグ用）
     ])
 
+    #checkpoint
+
     with open(os.path.join(output_base, "rejected.filtering.jsonl"), "w") as rejected:
         with open(os.path.join(output_base, "result.filtering.jsonl"), "w") as writer:
             for line in lines:
@@ -46,10 +48,13 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
     stats.append(cleaner.statistics)
 
     return remained_lines
-
-
+"""
 def __readlines(input_file: str):
     with gzip.open(input_file, "rt") as fp:
+        return fp.readlines()
+"""
+def __readlines(input_file: str):
+    with open(input_file, "r") as fp:
         return fp.readlines()
 
 
@@ -57,7 +62,7 @@ def filtering(input_dir: str, output_base: str):
     os.makedirs(output_base, exist_ok=True)
 
     file_lines = {input_file: __readlines(os.path.join(input_dir, input_file))
-                  for input_file in os.listdir(input_dir) if input_file.endswith(".jsonl.gz")}
+                  for input_file in os.listdir(input_dir) if input_file.endswith(".jsonl")}
 
     stats = []
     for input_file, json_lines in file_lines.items():
@@ -79,11 +84,10 @@ def filtering(input_dir: str, output_base: str):
             json.dump(stat, writer, ensure_ascii=False)
             writer.write("\n")
 
-
 def main():
     parser = argparse.ArgumentParser(description='Process some documents.')
     parser.add_argument('--input_dir', type=str,
-                        help='The input directory containing documents to process', required=False, default="../step00_download_datasets/output/mc4_ja")
+                        help='The input directory containing documents to process', required=False, default="../step00_download_datasets/output/wiki_ja")
     parser.add_argument('--output_dir', type=str,
                         help='The input file containing documents to process', required=False, default="./output")
     args = parser.parse_args()

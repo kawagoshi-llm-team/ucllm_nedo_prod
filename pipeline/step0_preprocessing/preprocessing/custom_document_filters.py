@@ -1,7 +1,8 @@
 from hojichar import document_filters, Document
 from fugashi import Tagger
-from ftlangdetect import detect
+#from ftlangdetect import detect
 
+from hojichar.core.filter_interface import Filter
 import unicodedata
 from gensim.models import FastText
 import numpy as np
@@ -39,26 +40,7 @@ class DiscardAdultContentJa(document_filters.NgWordsFilterJa):
 
         return doc
     
-class SelectJapanese(document_filters.AcceptJapanese):
-    """
-    TokenFilter の実装例です.
-    日本語以外の文書を排除します.
-    """
-
-    def __init__(self, lookup_size, *args: Any, **kwargs: Any) -> None:
-        super().__init__(lang="ja", lookup_size=lookup_size, *args, **kwargs)
-
-    def apply(self, doc: Document) -> Document:
-        filterd_doc = super().apply(doc) # テキストを左から`lookup_size` (デフォルトで50字) 参照し, ひらがな・カタカナが存在すれば日本語と判定す
-        if filterd_doc.is_rejected is False:
-   
-            result = detect(text=filterd_doc.text, low_memory=False) # fasttextを用いて言語判定
-            if result["lang"] != "ja" or result["score"] < 0.9: # fasttextのスコアが0.9未満の場合はreject
-                filterd_doc.is_rejected = True
-
-        return filterd_doc
-    
-class DiscardWithCharacterRatio():
+class DiscardWithCharacterRatio(Filter):
     """
     TokenFilter の実装例です.
     文字種比率によって文書を排除します.
@@ -69,7 +51,10 @@ class DiscardWithCharacterRatio():
                  comma_ratio_threshold: Optional[float] = 0.1, #カンマが多い方を削除
                  hiragana_ratio_threshold: Optional[float] = 0.2, #ひらがなが少ない方を削除
                  katakana_ratio_threshold: Optional[float] = None, #カタカナが多い方を削除
-                 kanji_ratio_threshold: Optional[float] = None): #漢字が多い方を削除
+                 kanji_ratio_threshold: Optional[float] = None,
+                 *args: Any,
+                 **kwargs: Any) -> None: #漢字が多い方を削除
+        super().__init__(*args, **kwargs)
         self.sentence_length_threshold = sentence_length_threshold
         self.comma_ratio_threshold = comma_ratio_threshold
         self.hiragana_ratio_threshold = hiragana_ratio_threshold
@@ -132,7 +117,7 @@ class DiscardWithCharacterRatio():
             doc.is_rejected = True
         return doc
     
-class DiscardAdultContentWithEmbedding():
+class DiscardAdultContentWithEmbedding(Filter):
     """
     TokenFilter の実装例です.
     DiscardWithCharacterRatioの後に適用することを想定しています。
@@ -142,12 +127,15 @@ class DiscardAdultContentWithEmbedding():
     def __init__(
         self,
         adult_threshold: float = 0.25,
+        *args: Any,
+        **kwargs: Any
     ) -> None:
+        super().__init__(*args, **kwargs)
         self.dict_path = "/home/kei.tsukamoto/fastText/cc.ja.300.bin" #自分が入れているfastTextのパスに変えてください
-        self.adult_embedding_path = "/adult_embedding.npy"
+        self.adult_embedding_path = "/home/kei.tsukamoto/ucllm_nedo_prod/pipeline/step0_preprocessing/preprocessing/adult_embedding_avg.npy"
         self.adult_embedding = np.load(self.adult_embedding_path)
         self.adult_threshold = adult_threshold
-        self.model = FastText.load_fasttext_format(self.dict_path)    
+        self.model = FastText.load_fasttext_format(self.dict_path)
 
     def calculate_inappropriate_score(self, sentence):
         text_owakati = tagger.parse(sentence).split()
@@ -165,6 +153,8 @@ class DiscardAdultContentWithEmbedding():
         filtered_sentences = []
 
         for sentence in sentences:
+            if len(sentence) == 0:
+                continue
             if self.calculate_inappropriate_score(sentence) <= self.adult_threshold:
                 filtered_sentences.append(sentence)
 
