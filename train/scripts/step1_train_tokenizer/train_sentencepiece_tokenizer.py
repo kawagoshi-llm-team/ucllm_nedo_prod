@@ -1,7 +1,6 @@
 # Appends a path to import python scripts that are in other directories.
 import os
 import sys
-import time
 import glob
 sys.path.append(os.path.join(os.environ["HOME"], "ucllm_nedo_prod/train/scripts/common/"))
 
@@ -13,6 +12,7 @@ from special_token_list import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, CLS_TOKEN, SEP_T
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, required=True)
+    parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--model_prefix", type=str, required=True)
     parser.add_argument("--vocab_size", type=int, required=True)
     parser.add_argument("--character_coverage", type=float, default=0.9995)
@@ -23,10 +23,6 @@ def parse_arguments():
     print(f"{args = }")
     return args
 
-# 学習データサイズを計算（ディレクトリ内の全.txtファイルのサイズをKByte単位で計算）
-def calculate_files_size_kbytes(directory):
-    total_size = sum(os.path.getsize(f) for f in glob.glob(os.path.join(directory, "*.txt")))
-    return total_size / 1024  # KBytesに変換
 
 def main():
     args = parse_arguments()
@@ -34,15 +30,6 @@ def main():
     # 学習対象データの読み込み
     all_text_files = glob.glob(os.path.join(args.input_dir, "*.txt"))
     input_files_str = ",".join(all_text_files)  # SentencePieceに渡す形式に変換
-
-    # 学習データサイズを計算
-    data_size = calculate_files_size_kbytes(args.input_dir)
-    
-    # トレーニング開始時間を記録
-    start_time = time.time()
-
-      # 処理開始日時をYYYYMMDDHHMISS形式で取得
-    start_time_str = time.strftime("%Y%m%d%H%M%S", time.localtime(start_time))
 
     # Trains a SentencePiece tokenizer. After training, *.model and *.vocab will be saved in the current directory.
     spm.SentencePieceTrainer.train(
@@ -68,18 +55,6 @@ def main():
         allow_whitespace_only_pieces=True,
         remove_extra_whitespaces=False,
     )
-
-    # トレーニング終了時間を記録し、処理時間を計算
-    end_time = time.time()
-    processing_time = (end_time - start_time)
-
-    # ファイル名を処理開始日時でフォーマット
-    output_file_name = f"{start_time_str}.txt"
-
-    # 結果をファイルに出力
-    with open(output_file_name, "w") as file:
-        file.write(f"data_size(KByte):{data_size:.2f}\n")
-        file.write(f"processing_time(s)：{processing_time:.2f}")
 
 if __name__ == "__main__":
     main()
