@@ -23,10 +23,12 @@ echo "Output directory: $OUTPUT_DIR"
 echo "Model prefix: $MODEL_PREFIX"
 echo "Vocabulary size: $VOCAB_SIZE"
 
-# 学習データサイズを計算
+# 処理開始時間を取得
 start_time=$(date +%s)
-total_size=$(du -sk "$INPUT_DIR" | cut -f1)
-echo "Data size: $total_size KBytes"
+
+# 学習データサイズを計算
+total_size=$(find "$INPUT_DIR" -maxdepth 1 -name "*.txt" -exec du -k {} + | awk '{sum += $1} END {print sum}')
+echo "Total size of .txt files: $total_size KBytes"
 
 # SentencePiece トレーニングの実行
 python ./train_sentencepiece_tokenizer.py \
