@@ -264,7 +264,7 @@ def get_element_from_dict_by_path(d, path):
     """
     path = path.split(".")
     #print(f"path : {path}")
-    print(f"d : {d['model']['language_model'].keys()}")
+    #print(f"d : {d['model']['language_model'].keys()}")
     for k in path:
         if k not in d:
             d[k] = {}
@@ -329,14 +329,17 @@ def convert_wqkv(
     n_hidden = qkv_w.size(1)
     hidden_dim: int = n_hidden // n_heads * tp_size
     # qkv_w = permute_qkv(qkv_w, n_hidden, n_heads, n_heads_kv, revert=True)
-    print(f"qkv_w.shape is {qkv_w.shape}")
+    #print(f"qkv_w.shape is {qkv_w.shape}")
 
     n_qs_per_kv: int = n_heads // n_heads_kv
     n_groups: int = qkv_w.size(0) // hidden_dim // (n_qs_per_kv + 2)
     #n_groups = qkv_w.size(0) // (hidden_dim * (n_qs_per_kv + 2))
     qkv_w: list[torch.Tensor] = list(torch.split(qkv_w, hidden_dim, dim=0))
     #qkv_w: list[torch.Tensor] = list(torch.chunk(qkv_w, n_groups, dim=0))
-
+    #print(f"n_groups {n_groups}")
+    #print(f"n_qs_per_kv {n_qs_per_kv}")
+    #for i in range(len(qkv_w)):
+    #    print(f"qkv_w {i} :{qkv_w[i].shape}")
     wq, wk, wv = [], [], []
     for group in range(n_groups):
         for qs in range(n_qs_per_kv):
@@ -479,7 +482,7 @@ def convert_checkpoint_from_megatron_to_transformers(args: argparse.Namespace) -
 
     tp_size: int = megatron_args.tensor_model_parallel_size
     pp_size: int = megatron_args.pipeline_model_parallel_size
-    assert tp_size == 1 and pp_size == 1
+    #assert tp_size == 1 and pp_size == 1
 
     # The regex to extract layer names.
     layer_re = re.compile(r"layers\.(\d+)\.([a-z0-9_.]+)\.([a-z]+)")
@@ -515,17 +518,17 @@ def convert_checkpoint_from_megatron_to_transformers(args: argparse.Namespace) -
         if pp_size > 0:
             print(f"Converting pipeline parallel rank {pp_rank}")
             tp_state_dicts = get_megatron_sharded_states(state_path, tp_size, pp_size, pp_rank)
-
         # The transformer.
         path = "model.language_model.encoder"
 
         # Extract the layers.
         for key, val in get_element_from_dict_by_path(tp_state_dicts[0], path).items():
             # Match the name.
+            #print(f"val {val}")
             m = layer_re.match(key)
             # Stop if that's not a layer
             if m is None:
-                break
+                continue
 
             # The index of the layer.
             layer_idx = int(m.group(1)) + pp_rank * num_layers
@@ -595,32 +598,67 @@ def convert_checkpoint_from_megatron_to_transformers(args: argparse.Namespace) -
             rotary_base = 10000
             inv_freq = 1.0 / (rotary_base ** (torch.arange(0, hidden_size_per_head, 2).float() / hidden_size_per_head))
             output_state_dict[layer_name + '.self_attn.rotary_emb.inv_freq'] = inv_freq.to(dtype)
-
-    if config.num_hidden_layers != (layer_idx + 1):  # type: ignore
-        raise ValueError(f"Expected {config.n_layer} layers but found {layer_idx + 1}")  # type: ignore
+            
+    #if config.num_hidden_layers != (layer_idx + 1):  # type: ignore
+    #    raise ValueError(f"Expected {config.n_layer} layers but found {layer_idx + 1}")  # type: ignore
 
     # The final layernorm.
-    print(f"Converting {layer_idx+1} layernorm")
-    params = get_element_from_dict_by_path(tp_state_dicts[0], str(path))  # type: ignore
+    print(f"Converting final_layernorm")
     #print(params.keys())
-    layer_name=layer_idx+1
-    output_state_dict["model.norm.weight"] = params[f"layers.{layer_name}.weight"].to(dtype)
+    #if pp_size==0:
+    #    final_layer_norm_name=layer_idx+1
+    #    path="model.language_model.encoder"
+    #elif pp_size>1:
+    final_layer_norm_name="final_layernorm.weight"
+    path="model.language_model.encoder"
+    #print(get_element_from_dict_by_path(
+    #            tp_state_dicts[1], "model.language_model.encoder.final_layernorm"
+    #        ))
+    final_norm = torch.cat(
+        [
+            get_element_from_dict_by_path(
+                tp_state_dicts[tp_rank], path
+            )[final_layer_norm_name]
+            for tp_rank in range(1)
+        ],
+        dim=0
+    )
+    output_state_dict["model.norm.weight"] = final_norm.to(dtype)
 
     #print(params.keys())
     # For LM head, transformers' wants the matrix to weight embeddings.
     print("Converting LM head")
-    #lm_heads = torch.cat(
-    #    [
-    #        get_element_from_dict_by_path(
-    #            tp_state_dicts[tp_rank], "model.language_model.encoder.final_layernorm.lm_head.weight"
-    #        )
-    #        for tp_rank in range(tp_size)
-    #    ],
-    #    dim=0
-    #)
+    
+    #if pp_size==0:
+    #    path="model.language_model.encoder"
+    #    embedding_for_head_name="final_layernorm.lm_head.weight"
+    #    lm_heads = torch.cat(
+    #        [
+    #            get_element_from_dict_by_path(
+    #                tp_state_dicts[tp_rank], path
+    #            )[embedding_for_head_name]
+    #            for tp_rank in range(tp_size)
+    #        ],
+    #        dim=0
+    #     )
+    #elif pp_size>1:
+    path="model"
+    embedding_for_head_name="word_embeddings_for_head"
+    #print(get_element_from_dict_by_path(
+    #        tp_state_dicts[0], path
+    #    )["word_embeddings_for_head"])
+    lm_heads = torch.cat(
+        [
+            get_element_from_dict_by_path(
+                tp_state_dicts[tp_rank], path
+            )[embedding_for_head_name]["lm_head.weight"]
+            for tp_rank in range(tp_size)
+        ],
+        dim=0
+    )
     #print(f"shape: {lm_heads.shape}")
-    output_state_dict["lm_head.weight"] = params[f"final_layernorm.lm_head.weight"].to(dtype)
-    ####lm_heads.to(dtype).clone().detach().contiguous()
+    output_state_dict["lm_head.weight"] = lm_heads.to(dtype).clone().detach().contiguous()
+    ###params[f"final_layernorm.lm_head.weight"].to(dtype)
 
     # It should be done!
     #print("Conversion from Megatron-LM to Transformers is done!")

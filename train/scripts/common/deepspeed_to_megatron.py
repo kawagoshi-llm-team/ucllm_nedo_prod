@@ -5,6 +5,7 @@ import os
 import torch
 from collections import OrderedDict
 from deepspeed_checkpoint import ARGS_KEY, DeepSpeedCheckpoint
+import inspect
 
 MODEL_KEY = 'model'
 ARGS_KEY = 'args'
@@ -14,6 +15,7 @@ ENCODER_KEY = 'encoder'
 WORD_EMBEDDINGS_FOR_HEAD_KEY = 'word_embeddings_for_head'
 WORD_EMBEDDINGS_KEY = 'word_embeddings'
 FINAL_LAYER_NORM_KEY ='final_layernorm'
+LM_HEAD_KEY ='lm_head'
 CHECKPOINT_VERSION_KEY = 'checkpoint_version'
 CHECKPOINT_VERSION_VALUE = 3.0
 ITERATION_KEY = 'iteration'
@@ -85,24 +87,39 @@ def _create_rank_checkpoint(ds_checkpoint, tp_index, pp_index, for_release=False
 
     transformer_sd = ds_checkpoint.get_transformer_state(tp_index, pp_index)
     meg_encoder_sd.update(_convert_ds_transformer_state(transformer_sd))
-
+    
     if pp_index in [0, ds_checkpoint.pp_degree - 1]:
         embedding_sd = ds_checkpoint.get_embedding_state(tp_index)
         nested_embedding_sd = _renest_sd(embedding_sd)
         if pp_index == 0:
             meg_embedding_sd.update(nested_embedding_sd)
 
-        if pp_index == ds_checkpoint.pp_degree - 1:
-            for key, value in embedding_sd.items():
-                if key.startswith(WORD_EMBEDDINGS_KEY):
-                    fields = key.split('.')
-                    new_fields = fields[1:]
-                    new_key = '.'.join(new_fields)
-                    meg_embedding_for_head_sd[new_key] = value
+            if ds_checkpoint.pp_degree==1:
+                final_norm_sd = ds_checkpoint.get_final_norm_state(tp_index)
+                new_final_norm_sd = {f'{FINAL_LAYER_NORM_KEY}.{key}': value for key, value in final_norm_sd.items()}
+                print(f"new_final_norm_sd {new_final_norm_sd['final_layernorm.weight'].shape}")
+                meg_encoder_sd.update(new_final_norm_sd)
+                
+                lm_head_sd = ds_checkpoint.get_lm_head_state(tp_index)
+                meg_embedding_for_head_sd = {f'{key}': value for key, value in lm_head_sd.items()}
+                print(f"new_lm_head_sd {meg_embedding_for_head_sd['lm_head.weight'].shape}")
+
+        elif pp_index == ds_checkpoint.pp_degree - 1:
+            #for key, value in embedding_sd.items():
+            #    if key.startswith(WORD_EMBEDDINGS_KEY):
+            #        fields = key.split('.')
+            #        new_fields = fields[1:]
+            #        new_key = '.'.join(new_fields)
+            #        meg_embedding_for_head_sd[new_key] = value
 
             final_norm_sd = ds_checkpoint.get_final_norm_state(tp_index)
             new_final_norm_sd = {f'{FINAL_LAYER_NORM_KEY}.{key}': value for key, value in final_norm_sd.items()}
+            print(f"new_final_norm_sd {new_final_norm_sd['final_layernorm.weight'].shape}")
             meg_encoder_sd.update(new_final_norm_sd)
+            
+            lm_head_sd = ds_checkpoint.get_lm_head_state(tp_index)
+            meg_embedding_for_head_sd = {f'{key}': value for key, value in lm_head_sd.items()}
+            print(f"new_lm_head_sd {meg_embedding_for_head_sd['lm_head.weight'].shape}")
 
     checkpoint_sd = _create_megatron_dict()
 
@@ -110,9 +127,12 @@ def _create_rank_checkpoint(ds_checkpoint, tp_index, pp_index, for_release=False
     checkpoint_sd[ITERATION_KEY] = iteration
     if pp_index == 0:
         checkpoint_sd[MODEL_KEY][LANGUGAGE_MODEL_KEY][EMBEDDING_KEY] = meg_embedding_sd
+        #print(meg_embedding_sd["word_embeddings"]["weight"].shape)
     checkpoint_sd[MODEL_KEY][LANGUGAGE_MODEL_KEY][ENCODER_KEY] = meg_encoder_sd
+    #print(meg_encoder_sd.keys())
     if pp_index == ds_checkpoint.pp_degree - 1:
         checkpoint_sd[MODEL_KEY][WORD_EMBEDDINGS_FOR_HEAD_KEY] = meg_embedding_for_head_sd
+        #print(meg_embedding_for_head_sd["weight"].shape)
 
     checkpoint_sd[ARGS_KEY] = ds_checkpoint.get_args()
     # Adjust specific fields
