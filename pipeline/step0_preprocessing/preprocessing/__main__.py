@@ -48,21 +48,21 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
     stats.append(cleaner.statistics)
 
     return remained_lines
-"""
-def __readlines(input_file: str):
-    with gzip.open(input_file, "rt") as fp:
-        return fp.readlines()
-"""
-def __readlines(input_file: str):
-    with open(input_file, "r") as fp:
-        return fp.readlines()
 
+def __readlines(input_file: str):
+    if input_file.endswith(".gz"):
+        with gzip.open(input_file, "rt") as fp:
+            return fp.readlines()
+    else:
+        with open(input_file, "r") as fp:
+            return fp.readlines()
 
 def filtering(input_dir: str, output_base: str):
     os.makedirs(output_base, exist_ok=True)
 
     file_lines = {input_file: __readlines(os.path.join(input_dir, input_file))
-                  for input_file in os.listdir(input_dir) if input_file.endswith(".jsonl")}
+                  for input_file in os.listdir(input_dir)
+                  if input_file.endswith((".jsonl", ".jsonl.gz", ".txt", ".txt.gz"))}
 
     stats = []
     for input_file, json_lines in file_lines.items():
