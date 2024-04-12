@@ -49,33 +49,30 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
 
     return remained_lines
 
-def __readlines(input_file: str):
+def __readline(input_file: str):
     if input_file.endswith(".gz"):
         with gzip.open(input_file, "rt") as fp:
-            return fp.readlines()
+            for line in fp:
+                yield line.strip()
     else:
         with open(input_file, "r") as fp:
-            return fp.readlines()
+            for line in fp:
+                yield line.strip()
 
 def filtering(input_dir: str, output_base: str):
     os.makedirs(output_base, exist_ok=True)
 
-    file_lines = {input_file: __readlines(os.path.join(input_dir, input_file))
-                  for input_file in os.listdir(input_dir)
-                  if input_file.endswith((".jsonl", ".jsonl.gz", ".txt", ".txt.gz"))}
+    input_files = [input_file for input_file in os.listdir(input_dir)
+                   if input_file.endswith((".jsonl", ".jsonl.gz", ".txt", ".txt.gz"))]
 
     stats = []
-    for input_file, json_lines in file_lines.items():
-        input_file_prefix = os.path.splitext(os.path.basename(input_file))[0]
-        output_base_for_input: str = os.path.join(output_base, input_file_prefix)
-        os.makedirs(output_base_for_input, exist_ok=True)
-
-        lines = process_json_lines(json_lines, output_base_for_input, stats)
-        file_lines[input_file] = lines
-
     with gzip.open(os.path.join(output_base, "results.filtering.jsonl.gz"), "wt") as writer:
-        for _, lines in file_lines.items():
-            for line in lines:
+        for input_file in input_files:
+            input_file_prefix = os.path.splitext(os.path.basename(input_file))[0]
+            output_base_for_input: str = os.path.join(output_base, input_file_prefix)
+            os.makedirs(output_base_for_input, exist_ok=True)
+
+            for line in process_json_lines(__readline(os.path.join(input_dir, input_file)), output_base_for_input, stats):
                 json.dump(line, writer, ensure_ascii=False)
                 writer.write("\n")
 
