@@ -81,9 +81,9 @@ def filtering(input_dir: str, output_base: str):
         input_file_prefix = os.path.splitext(os.path.basename(input_file))[0]
         output_base_for_input: str = os.path.join(output_base, input_file_prefix)
         os.makedirs(output_base_for_input, exist_ok=True)
-
-        with gzip.open(os.path.join(output_base, input_file+"results.filtering.jsonl.gz"), "at") as writer:
-            for line in process_json_lines(__readline(os.path.join(input_dir, input_file)), output_base_for_input, stats):
+        
+        for line in process_json_lines(__readline(os.path.join(input_dir, input_file)), output_base_for_input, stats):
+            with gzip.open(os.path.join(output_base, input_file+"results.filtering.jsonl.gz"), "at") as writer:
                 json.dump(line, writer, ensure_ascii=False)
                 writer.write("\n")
 
