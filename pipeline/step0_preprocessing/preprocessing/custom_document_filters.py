@@ -38,6 +38,87 @@ class DiscardAdultContentJa(document_filters.NgWordsFilterJa):
 
         return doc
 
+class DiscardAds(document_filters.NgWordsFilterJa):
+    """
+    TokenFilter の実装例です.
+    日本語の成人向けコンテンツを閾値に応じて排除します.
+    """
+
+    def __init__(
+        self,
+        dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/advertisement_keywords_ja.txt",
+        threshold: float = 0.01,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(dict_path, *args, **kwargs)
+        self.threshold = threshold
+
+    def apply(self, doc: Document) -> Document:
+        adult_keywords_pattern = self.keyword_pat
+        matches = re.findall(adult_keywords_pattern, doc.text)
+        adult_content_count = len(matches)
+        total_words_count = len(tagger.parse(doc.text).split()) # Owakatiで分かち書きして単語数を数える
+
+        if total_words_count > 0 and adult_content_count / total_words_count > self.threshold:
+            doc.is_rejected = True # adult keywordsの割合が閾値を超えたらreject
+
+        return doc
+    
+class DiscardDiscriminationContentJa(document_filters.NgWordsFilterJa):
+    """
+    TokenFilter の実装例です.
+    日本語の成人向けコンテンツを閾値に応じて排除します.
+    """
+
+    def __init__(
+        self,
+        dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/discrimination_keywords_ja.txt",
+        threshold: float = 0.01,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(dict_path, *args, **kwargs)
+        self.threshold = threshold
+
+    def apply(self, doc: Document) -> Document:
+        adult_keywords_pattern = self.keyword_pat
+        matches = re.findall(adult_keywords_pattern, doc.text)
+        adult_content_count = len(matches)
+        total_words_count = len(tagger.parse(doc.text).split()) # Owakatiで分かち書きして単語数を数える
+
+        if total_words_count > 0 and adult_content_count / total_words_count > self.threshold:
+            doc.is_rejected = True # adult keywordsの割合が閾値を超えたらreject
+
+        return doc
+
+class DiscardViolenceContentJa(document_filters.NgWordsFilterJa):
+    """
+    TokenFilter の実装例です.
+    日本語の成人向けコンテンツを閾値に応じて排除します.
+    """
+
+    def __init__(
+        self,
+        dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/violence_keywords_ja.txt",
+        threshold: float = 0.01,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(dict_path, *args, **kwargs)
+        self.threshold = threshold
+
+    def apply(self, doc: Document) -> Document:
+        adult_keywords_pattern = self.keyword_pat
+        matches = re.findall(adult_keywords_pattern, doc.text)
+        adult_content_count = len(matches)
+        total_words_count = len(tagger.parse(doc.text).split()) # Owakatiで分かち書きして単語数を数える
+
+        if total_words_count > 0 and adult_content_count / total_words_count > self.threshold:
+            doc.is_rejected = True # adult keywordsの割合が閾値を超えたらreject
+
+        return doc
+
 class DiscardWithCharacterRatio(Filter):
     """
     TokenFilter の実装例です.
@@ -63,8 +144,7 @@ class DiscardWithCharacterRatio(Filter):
         self.katakana_chars = set(chr(i) for i in range(12449, 12534))
 
     def apply(self, doc: Document) -> Document:
-        normalized_doc = unicodedata.normalize("NFKC", doc.text)
-        normalized_doc = normalized_doc.replace('|', '')
+        normalized_doc = doc.text.replace('|', '')
         normalized_doc = re.sub(r'\【.*?\】', '', normalized_doc)
         sentences = re.split(r'[\n　.。 ]', normalized_doc)
 
@@ -129,7 +209,7 @@ class DiscardAdultContentWithEmbedding(Filter):
         **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.model_path = "/persistentshare/storage/team_kawagoshi/fastText/cc.ja.300.bin"
+        self.model_path = "../../fastText/cc.ja.300.bin"
         self.adult_embedding_path = "./preprocessing/adult_embedding_avg.npy"
         self.adult_embedding = np.load(self.adult_embedding_path)
         self.adult_threshold = adult_threshold

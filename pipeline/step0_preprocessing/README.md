@@ -1,3 +1,26 @@
+# fastTextのインストール
+```sh
+$git clone https://github.com/facebookresearch/fastText.git
+$cd fastText
+$./download_model.py ja
+```
+
+# ローカルで前処理をする際の手順
+
+ダウンロードしたファイルはucllm_nedo_prod/pipeline/datasetディレクトリにおいてください
+
+```sh
+$pwd
+// ~/ucllm_nedo_prod
+$cd data_management
+$pip install -r requirements.txt
+$python -m unidic download
+$cd ../pipeline/step0_preprocessing
+$python -m preprocessing --input_dir=../dataset --output_dir=../preprocessed_dataset
+```
+
+
+
 # Preprocessing
 
 <img width="694" alt="スクリーンショット 2024-02-27 14 21 58" src="https://github.com/matsuolab/ucllm_nedo_dev/assets/1203529/f42cac59-20f9-4b0e-990b-e5dcd24fbcd3">
