@@ -63,7 +63,7 @@ def __readline(input_file: str):
         table = pq.read_table(input_file)
         for batch in table.to_batches():
             for i in range(batch.num_rows):
-                yield json.dumps(batch[i].as_py(), ensure_ascii=False)
+                yield json.dumps({"text": batch[0].to_pylist()[i]}, ensure_ascii=False)
     else:
         with open(input_file, "r") as fp:
             for line in fp:
@@ -73,7 +73,7 @@ def filtering(input_dir: str, output_base: str):
     os.makedirs(output_base, exist_ok=True)
 
     input_files = [input_file for input_file in os.listdir(input_dir)
-                   if input_file.endswith((".jsonl", ".jsonl.gz", ".txt", ".txt.gz"))]
+                   if input_file.endswith((".jsonl", ".jsonl.gz", ".txt", ".txt.gz", ".parquet"))]
 
     stats = []
     with gzip.open(os.path.join(output_base, "results.filtering.jsonl.gz"), "wt") as writer:
