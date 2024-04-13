@@ -7,5 +7,5 @@ def extract_first_100_rows(input_file: str, output_file: str):
 
 # 使用例
 input_file = "../dataset/train_0.parquet"
-output_file = "../dataset/train_0_head.parquet"
+output_file = "../small_dataset/train_0_head.parquet"
 extract_first_100_rows(input_file, output_file)
