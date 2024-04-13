@@ -5,6 +5,7 @@ from hojichar import document_filters, tokenization, Compose, Document
 import pyarrow.parquet as pq
 import os
 import gzip
+from tqdm import tqdm
 
 from preprocessing import custom_token_filters, custom_tokenization, custom_document_filters
 
@@ -39,7 +40,7 @@ def process_json_lines(lines: list[str], output_base: str, stats: list[dict]):
 
     with open(os.path.join(output_base, "rejected.filtering.jsonl"), "w") as rejected:
         with open(os.path.join(output_base, "result.filtering.jsonl"), "w") as writer:
-            for line in lines:
+            for line in tqdm(lines, desc="Processing lines"):
                 result = cleaner.apply(Document(line)) # textの中身をDocumentに入れてapplyし、cleanerの中で定義された処理を実行   
                 if result.is_rejected:
                     rejected.write(result.text + "\n")
