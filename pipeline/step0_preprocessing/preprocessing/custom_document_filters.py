@@ -20,7 +20,7 @@ class DiscardAdultContentJa(document_filters.NgWordsFilterJa):
     def __init__(
         self,
         dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/adult_keywords_ja.txt",
-        threshold: float = 0.01,
+        threshold: float = 0.1,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -47,7 +47,7 @@ class DiscardAds(document_filters.NgWordsFilterJa):
     def __init__(
         self,
         dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/advertisement_keywords_ja.txt",
-        threshold: float = 0.01,
+        threshold: float = 0.1,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -74,7 +74,7 @@ class DiscardDiscriminationContentJa(document_filters.NgWordsFilterJa):
     def __init__(
         self,
         dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/discrimination_keywords_ja.txt",
-        threshold: float = 0.01,
+        threshold: float = 0.1,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -101,7 +101,7 @@ class DiscardViolenceContentJa(document_filters.NgWordsFilterJa):
     def __init__(
         self,
         dict_path: Union[str, PathLike] = document_filters.BASE_PATH / "dict/violence_keywords_ja.txt",
-        threshold: float = 0.01,
+        threshold: float = 0.1,
         *args: Any,
         **kwargs: Any,
     ) -> None:

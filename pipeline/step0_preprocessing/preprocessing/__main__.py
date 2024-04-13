@@ -63,7 +63,7 @@ def __readline(input_file: str):
         table = pq.read_table(input_file)
         for batch in table.to_batches():
             for i in range(batch.num_rows):
-                yield json.dumps({"text": batch[0].to_pylist()[i]}, ensure_ascii=False)
+                yield json.dumps({"text": batch["text"].to_pylist()[i]}, ensure_ascii=False)
     else:
         with open(input_file, "r") as fp:
             for line in fp:
