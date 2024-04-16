@@ -1,109 +1,339 @@
-import argparse
-import json
 import os
-from hojichar import document_filters, tokenization, Compose, Document
-from preprocessing.filtering import custom_token_filters, custom_tokenization, custom_document_filters
-import pyarrow.parquet as pq
+import re
+import json
+import difflib
+import MeCab
+import argparse
+import unicodedata
+from abc import ABC, abstractmethod
+from tqdm import tqdm
+from collections import Counter
+from hojichar import document_filters, Compose, Document
 
-def process_json_line(line: str, cleaner, writer, rejected_writer):
-    result = cleaner.apply(Document(line))
-    if result.is_rejected:
-        # 拒否された行を拒否専用のファイルに保存
-        rejected_writer.write(json.dumps({'text': line}, ensure_ascii=False) + "\n")
-        return False
-    else:
-        # 拒否されていない行を通常のファイルに保存
-        writer.write(result.text + "\n")
-        return True
+def parse_args():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Preprocess dataset')
+    parser.add_argument('--input_file', type=str, required=True, help='Input file path')
+    parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
+    parser.add_argument('--min_doc_len', type=int, default=30, help='Minimum document length')
+    parser.add_argument('--max_doc_len', type=int, default=50000, help='Maximum document length')
+    parser.add_argument('--symbol_noun_ratio', type=float, default=0.5, help='Maximum ratio of symbols and nouns')
+    parser.add_argument('--unwanted_strings_file', type=str, default='unwanted_strings.json', help='JSON file containing unwanted strings')
+    return parser.parse_args()
 
-def __readline(input_file: str, start_line=0):
-    line_count = 0
+class Processer(ABC):
+    def __init__(self):
+        pass
 
-    if input_file.endswith(".gz"):
-        with gzip.open(input_file, "rt") as fp:
-            for line in fp:
-                if line_count >= start_line:
-                    yield line.strip()
-                line_count += 1
-    elif input_file.endswith(".parquet"):
-        table = pq.read_table(input_file)
-        for batch in table.to_batches():
-            for i in range(batch.num_rows):
-                if line_count >= start_line:
-                    yield json.dumps({"text": batch["text"].to_pylist()[i]}, ensure_ascii=False)
-                line_count += 1
-    else:            
-        with open(input_file, "r") as fp:
-            for line in fp:
-                if line_count >= start_line:
-                    yield line.strip()
-                line_count += 1
+    @abstractmethod
+    def execute(self, data):
+        self.data = data
+        pass
 
-def get_progress_file_path(output_base, input_file_prefix):
-    return os.path.join(output_base, f"{input_file_prefix}_progress.txt")
+class DatasetPreprocessor(Processer):
+    def __init__(self, args):
+        self.args = args
+        self.tagger = MeCab.Tagger("")
 
-def save_progress(output_base, input_file_prefix, line_num):
-    progress_file_path = get_progress_file_path(output_base, input_file_prefix)
-    with open(progress_file_path, "w") as file:
-        file.write(str(line_num))
+    def _load_unwanted_strings(self, file_path) -> dict:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            return json.load(file)
 
-def load_progress(output_base, input_file_prefix):
-    progress_file_path = get_progress_file_path(output_base, input_file_prefix)
-    if os.path.exists(progress_file_path):
-        with open(progress_file_path, "r") as file:
-            return int(file.read().strip())
-    return 0
+    def process_dataset(self):
 
-def filtering(input_dir: str, output_base: str):
-    os.makedirs(output_base, exist_ok=True)
-    input_files = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith(".jsonl")]
+        # Load unwanted strings from the specified file
+        unwanted_strings_dict = self._load_unwanted_strings(self.args.unwanted_strings_file)
 
-    cleaner = Compose([
-        document_filters.JSONLoader(), # テキストをJsonとして解釈し,`key`で指定した要素を文字列としてdoumentに格納.デフォルト`key`は'text'.
-        document_filters.DocumentNormalizer(), # 文書の正規化を行う.デフォルトでは全角文字を半角文字に変換する.(NFKC)
-        #document_filters.DiscardBBSComments(), # 正規表現 "BBS Patern" に `max_allow_num`(default: 14) 回よりたくさんマッチする文書を破棄。
-        #document_filters.DiscardAds(), # 主に広告キーワードを`max_allow_num`より多く含む文書を破棄.
-        #document_filters.DiscardViolenceContentJa(), # 日本語の暴力表現キーワードを含む文書を破棄.
-        #document_filters.DiscardDiscriminationContentJa(), # 日本語の差別キーワード(および不適切語)を含む文書を破棄.
-        document_filters.DocumentLengthFilter(min_doc_len=10, max_doc_len=100000), # 文書の長さがmin_doc_lenより短い、またはmax_doc_lenより長い文書を破棄.
-        custom_document_filters.DiscardAdultContentJa(), # 日本語の成人向けコンテンツを閾値に応じて排除.
-        custom_document_filters.DiscardAds(),
-        custom_document_filters.DiscardViolenceContentJa(),
-        custom_document_filters.DiscardDiscriminationContentJa(),
-        custom_document_filters.DiscardWithCharacterRatio(),
-        #custom_document_filters.DiscardAdultContentWithEmbedding(),
-        #custom_tokenization.NewLineSentenceTokenizer(), # 改行文字で文章を区切る.
-        #custom_token_filters.RemoveOneword(), # 1単語のみ以下のパターンを削除.
-        #custom_tokenization.MergeTokens(delimiter="\n"), # 破棄されていないトークンをdelimeterで結合.
-        #custom_tokenization.WakatiTokenizer(), # fugashi を用いて文を分割.
-        #custom_token_filters.RemoveDate(), # 日付のみのパターンを削除.
-        #tokenization.MergeTokens(), # 破棄されていないトークンを結合.
-        #custom_document_filters.SelectJapanese(lookup_size=50), # 日本語以外の文書を排除.
-        document_filters.MaskPersonalInformation(), # キュメントに含まれる電話番号・電子メールアドレスを一部マスキング.
-        document_filters.JSONDumper(dump_reason=False), # dump_reason=Tureの場合、ドキュメントの破棄事由をJSON形式で付与して出力. JSON形式で出力するため、最後に実行する.（デバッグ用）
-    ])
+        # Get the input file prefix and construct output file paths
+        input_file_prefix_path = os.path.splitext(os.path.basename(self.args.input_file))[0]
+        output_processed_file_path = os.path.join(self.args.output_dir, f"{input_file_prefix_path}_processed.jsonl")
+        output_rejected_file_path = os.path.join(self.args.output_dir, f"{input_file_prefix_path}_rejected.jsonl")
+
+        # Load the progress from the progress file
+        progress = self._load_progress(self.args.output_dir, input_file_prefix_path)
+
+        # Open the input file, output file, and rejected file
+        with open(self.args.input_file, 'r', encoding='utf-8') as infile, \
+             open(output_processed_file_path, 'a' if progress else 'w', encoding='utf-8') as outfile, \
+             open(output_rejected_file_path, 'a' if progress else 'w', encoding='utf-8') as rejected_outfile:
+
+            # Iterate over the lines in the input file with progress tracking
+            for line_num, line in enumerate(tqdm(infile, desc="Processing lines", initial=progress, total=progress+1)):
+                # Skip lines that have already been processed
+                if line_num < progress:
+                    continue
+
+                # Load the JSON data from the line
+                data = json.loads(line)
+                paragraph = data['paragraph']
+
+                # Process the paragraph
+                processed_paragraph = ParagraphProcesser(paragraph, self.args.min_doc_len, self.args.max_doc_len).execute()
+
+                if processed_paragraph is None:
+                    rejected_outfile.write(line)
+                    continue
+
+                # Process sentences in the paragraph
+                processed_sentences = SentenceProcesser(processed_paragraph, self.args.symbol_noun_ratio, unwanted_strings_dict, self.tagger).execute()
+
+                # Write the processed sentences to the output file if not empty
+                if processed_sentences:
+                    original_sentence = data['paragraph']
+                    new_sentence = ''.join(processed_sentences)
+                    data['paragraph'] = new_sentence
+                    outfile.write(json.dumps(data, ensure_ascii=False) + '\n')
+
+                else:
+                    rejected_outfile.write(line)
+
+                # Save progress every 1000 lines
+                if line_num % 1000 == 0:
+                    self._save_progress(self.args.output_dir, input_file_prefix_path, line_num + 1)
+
+        # Save the final progress
+        self._save_progress(self.args.output_dir, input_file_prefix_path, line_num + 1)
+
+    def _get_progress_file_path(self, output_dir, input_file_prefix):
+        # Get the path of the progress file
+        return os.path.join(output_dir, f"{input_file_prefix}_progress.txt")
+
+    def _save_progress(self, output_dir, input_file_prefix, line_num):
+        # Save the progress to a temporary file and replace the progress file
+        progress_file_path = self._get_progress_file_path(output_dir, input_file_prefix)
+        temp_file_path = progress_file_path + '.temp'
+
+        with open(temp_file_path, 'w', encoding='utf-8') as temp_file:
+            temp_file.write(str(line_num))
+
+        os.replace(temp_file_path, progress_file_path)
+
+    def _load_progress(self, output_dir, input_file_prefix):
+        # Load the progress from the progress file if it exists
+        progress_file_path = self._get_progress_file_path(output_dir, input_file_prefix)
+        if os.path.exists(progress_file_path):
+            with open(progress_file_path, 'r', encoding='utf-8') as file:
+                return int(file.read().strip())
+        return 0
+    
+    def execute(self):
+        pass
 
 
-    for input_file in input_files:
-        print("cleaning: " + input_file)
-        input_file_prefix = os.path.splitext(os.path.basename(input_file))[0]
-        output_file_path = os.path.join(output_base, f"{input_file_prefix}.jsonl")
-        rejected_file_path = os.path.join(output_base, f"{input_file_prefix}_rejected.jsonl")
-        progress = load_progress(output_base, input_file_prefix)
 
-        with open(output_file_path, "a" if progress else "w") as writer, open(rejected_file_path, "a" if progress else "w") as rejected_writer:
-            for line_num, line in enumerate(__readline(input_file, progress), start=progress):
-                process_json_line(line, cleaner, writer, rejected_writer)
-                save_progress(output_base, input_file_prefix, line_num + 1)
+class ParagraphProcesser(Processer):
+    def __init__(self, data, min_doc_len, max_doc_len):
+        self.data = data
+        self.min_doc_len = min_doc_len
+        self.max_doc_len = max_doc_len
+        return None
+    
+    def filtering_length_contents(self):
+        """① 長さフィルタと除去"""
+        if len(self.data) < self.min_doc_len or len(self.data) > self.max_doc_len:
+            return None
+        return self.data
 
-def main():
-    parser = argparse.ArgumentParser(description='Process some documents.')
-    parser.add_argument('--input_dir', type=str, help='The input directory containing documents to process', required=True)
-    parser.add_argument('--output_dir', type=str, help='The output directory to save processed documents', required=True)
-    args = parser.parse_args()
+    def exec_normalize_contents(self):
+        """② 基本正規化の実行"""
+        self.data = TextNormalizer.normalize_neologd(self.data)
+        return self.data
 
-    filtering(input_dir=args.input_dir, output_base=args.output_dir)
+    def execute(self):
+        self.data = self.filtering_length_contents()
+        if self.data is None:
+            return None
+        self.data = self.exec_normalize_contents()
+        return self.data
 
-if __name__ == "__main__":
-    main()
+class SentenceProcesser(Processer):
+    def __init__(self, data, symbol_noun_ratio, unwanted_strings, tagger):
+        self.data = data
+        self.symbol_noun_ratio = symbol_noun_ratio
+        self.unwanted_strings = unwanted_strings
+        self.tagger = tagger
 
+    def _delete_strange_sentence(self, sentence):
+        """③ 文章として成り立っていないものの削除"""
+        return TextCleaner.do_clean(sentence)
+
+    def _delete_NG_sentence(self, sentence):
+        """④ NGコンテンツの除去"""
+        cleaner = Compose([
+            document_filters.DiscardAdultContentJa(),
+            document_filters.DiscardAds(),
+            document_filters.DiscardViolenceContentJa(),
+            document_filters.DiscardDiscriminationContentJa(),
+            document_filters.MaskPersonalInformation()
+        ])
+        return cleaner.apply(Document(sentence)).text
+
+    def _delete_high_noun_rate_sentence(self, sentence):
+        """⑤ 記号・名詞割合が高い文章の除去"""
+        return TextFilter.filter_line(sentence, self.tagger, self.symbol_noun_ratio)
+
+    def _delete_other_stranges(self, sentence):
+        """⑥ その他消したい文字列の削除"""
+        for unwanted_string in self.unwanted_strings["unwanted_word"]:
+            if unwanted_string in sentence:
+                return None
+            else:
+                return sentence
+
+    def execute(self):
+        processed_sentences = []
+
+        sentences = re.findall(r'[^。！？]*[。！？]', self.data)
+
+        for sentence in sentences:
+            sentence = sentence.strip()
+            sentence = self._delete_strange_sentence(sentence)
+            if sentence is None:
+                continue
+            sentence = self._delete_NG_sentence(sentence)
+            sentence = self._delete_high_noun_rate_sentence(sentence)
+            if sentence is None:
+                continue
+            sentence = self._delete_other_stranges(sentence)
+            if sentence is None:
+                continue
+            processed_sentences.append(sentence)
+
+        return processed_sentences
+
+class TextNormalizer:
+    @staticmethod
+    def unicode_normalize(self, s):
+        pt = re.compile('([{}]+)'.format(self))
+        def norm(c):
+            return unicodedata.normalize('NFKC', c) if pt.match(c) else c
+        s = ''.join(norm(x) for x in re.split(pt, s))
+        s = re.sub('－', '-', s)
+        return s
+
+    @staticmethod
+    def remove_extra_spaces(s):
+        s = re.sub('[ 　]+', ' ', s)
+        blocks = ''.join((
+            '\\u4E00-\\u9FFF',  # CJK UNIFIED IDEOGRAPHS
+            '\\u3040-\\u309F',  # HIRAGANA
+            '\\u30A0-\\u30FF',  # KATAKANA
+            '\\u3000-\\u303F',  # CJK SYMBOLS AND PUNCTUATION
+            '\\uFF00-\\uFFEF'   # HALFWIDTH AND FULLWIDTH FORMS
+        ))
+        basic_latin = '\\u0000-\\u007F'
+
+        def remove_space_between(cls1, cls2, s):
+            p = re.compile('([{}]) ([{}])'.format(cls1, cls2))
+            while p.search(s):
+                s = p.sub(r'\\1\\2', s)
+            return s
+
+        s = remove_space_between(blocks, blocks, s)
+        s = remove_space_between(blocks, basic_latin, s)
+        s = remove_space_between(basic_latin, blocks, s)
+        return s
+
+    @staticmethod
+    def normalize_neologd(s):
+        s = s.strip()
+        s = TextNormalizer.unicode_normalize('０-９Ａ-Ｚａ-ｚ｡-ﾟ', s)
+
+        def maketrans(f, t):
+            return {ord(x): ord(y) for x, y in zip(f, t)}
+
+        s = re.sub('[˗֊‐‑‒–⁃⁻₋−]+', '-', s)  # normalize hyphens
+        s = re.sub('[﹣－ｰ—―─━ー]+', 'ー', s)  # normalize choonpus
+        s = re.sub('[~∼∾〜〰～]', '', s)  # remove tildes
+        s = s.translate(
+            maketrans('!"#$%&\'()*+,-./:;<=>?@[¥]^_`{|}~｡､･｢｣',
+                '！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［￥］＾＿｀｛｜｝〜。、・「」'))
+
+        s = TextNormalizer.remove_extra_spaces(s)
+        s = TextNormalizer.unicode_normalize('！”＃＄％＆’（）＊＋，－．／：；＜＞？＠［￥］＾＿｀｛｜｝〜', s)  # keep ＝,・,「,」
+        s = re.sub('[’]', '\'', s)
+        s = re.sub('[”]', '"', s)
+        # Replace consecutive "w" characters with "。"
+        s = re.sub(r'w{2,}', '。', s)
+
+        return s
+
+    @staticmethod
+    def normalize_file(input_file_path, output_file_path):
+        with open(input_file_path, 'r', encoding='utf-8') as input_file, \
+             open(output_file_path, 'w', encoding='utf-8') as output_file:
+            for line in input_file:
+                normalized_line = TextNormalizer.normalize_neologd(line)
+                output_file.write(normalized_line + '\n')
+
+class TextCleaner:
+    @staticmethod
+    def char_is_hiragana(c):
+        return u'\u3040' <= c <= u'\u309F'
+
+    @staticmethod
+    def contains_hiragana(s):
+        return any(TextCleaner.char_is_hiragana(c) for c in s)
+
+    @staticmethod
+    def count_whitespaces(text):
+        return text.count(" ")
+
+    @staticmethod
+    def is_closing_brace(c):
+        return c in ["」", "》", "）", "〉", "】", "]"]
+
+    @staticmethod
+    def do_clean(text: str, ws_threshold=1):
+        if not TextCleaner.contains_hiragana(text):
+            return None
+        sentences = text.split('\n')
+        results = []
+        for sent in sentences:
+            if not sent or TextCleaner.count_whitespaces(sent) >= ws_threshold or \
+               sent.endswith((",", "...", "\"", "'")) or \
+               not any(sent.endswith(p) for p in (".", "。", ")", "!", "！", "?", "？")) and \
+               not (sent and TextCleaner.is_closing_brace(sent[-1])):
+                continue
+            results.append(sent)
+        return "\n".join(results) if results else None
+
+class TextFilter:
+    @staticmethod
+    def filter_line(line, tagger, threshold=0.6):
+        if not line.strip():  # check empty lines
+            return None
+        
+        parsed = tagger.parse(line)
+        pos_counter = Counter()
+        all_counts = 0
+        
+        for result in parsed.split('\n'):
+            if result == 'EOS' or not result:
+                continue
+            parts = result.split('\t')
+            if len(parts) < 2:
+                continue
+            pos_info = parts[1].split(',')[0]
+            pos_counter[pos_info] += 1
+            all_counts += 1
+        
+        if all_counts == 0:  # Prevent division by zero
+            return None
+        
+        meishi_and_symbol_counts = pos_counter['名詞'] + pos_counter.get('記号', 0)
+        ratio = meishi_and_symbol_counts / all_counts
+        
+        if ratio > threshold:
+            return None  # If threshold is exceeded, exclude this row
+        else:
+            return line  # If below threshold, keep this line
+
+
+if __name__ == '__main__':
+    # Parse command-line arguments
+    args = parse_args()
+    
+    # Create an instance of DatasetPreprocessor and process the dataset
+    preprocessor = DatasetPreprocessor(args)
+    preprocessor.process_dataset()
