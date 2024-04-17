@@ -1,0 +1,19 @@
+model:
+  - stabilityai/japanese-stablelm-base-alpha-7b
+  - elyza/ELYZA-japanese-Llama-2-7b
+  - llm-jp/hf-fast-tokenizer-v22b2
+  - pfnet/plamo-13b
+  - lighttransport/japanese-tokenizer-cc100
+  - tokyotech-llm/Swallow-13b-hf
+  - geniacllm/ja-tokenizer-unigram-v1
+  - SakanaAI/EvoLLM-JP-A-v1-7B
+  - Rakuten/RakutenAI-7B-chat
+  - moneyforward/houou-instruction-7b-v2
+  - tokyotech-llm/Swallow-7b-instruct-hf
+  - nitky/Superswallow-70b-v0.1
+  - cyberagent/calm2-7b
+  - lightblue/qarasu-14B-chat-plus-unleashed
+  - lightblue/karasu-7B-chat-plus-unleashed
+  - karakuri-ai/karakuri-lm-70b-chat-v0.1
+  - rinna/nekomata-14b
+  - rinna/youri-7b
