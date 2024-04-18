@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
     parser.add_argument('--min_doc_len', type=int, default=30, help='Minimum document length')
     parser.add_argument('--max_doc_len', type=int, default=50000, help='Maximum document length')
-    parser.add_argument('--symbol_noun_ratio', type=float, default=0.5, help='Maximum ratio of symbols and nouns')
+    parser.add_argument('--symbol_noun_ratio', type=float, default=0.7, help='Maximum ratio of symbols and nouns')
     parser.add_argument('--unwanted_strings_file', type=str, default='unwanted_strings.json', help='JSON file containing unwanted strings')
     return parser.parse_args()
 
@@ -65,7 +65,7 @@ class DatasetPreprocessor(Processer):
 
                 # Load the JSON data from the line
                 data = json.loads(line)
-                paragraph = data['paragraph']
+                paragraph = data['text']
 
                 # Process the paragraph
                 processed_paragraph = ParagraphProcesser(paragraph, self.args.min_doc_len, self.args.max_doc_len).execute()
@@ -79,9 +79,7 @@ class DatasetPreprocessor(Processer):
 
                 # Write the processed sentences to the output file if not empty
                 if processed_sentences:
-                    original_sentence = data['paragraph']
-                    new_sentence = ''.join(processed_sentences)
-                    data['paragraph'] = new_sentence
+                    data['text'] = ''.join(processed_sentences)
                     outfile.write(json.dumps(data, ensure_ascii=False) + '\n')
 
                 else:
@@ -214,19 +212,18 @@ class TextNormalizer:
     @staticmethod
     def remove_extra_spaces(s):
         s = re.sub('[ 　]+', ' ', s)
-        blocks = ''.join((
-            '\\u4E00-\\u9FFF',  # CJK UNIFIED IDEOGRAPHS
-            '\\u3040-\\u309F',  # HIRAGANA
-            '\\u30A0-\\u30FF',  # KATAKANA
-            '\\u3000-\\u303F',  # CJK SYMBOLS AND PUNCTUATION
-            '\\uFF00-\\uFFEF'   # HALFWIDTH AND FULLWIDTH FORMS
-        ))
-        basic_latin = '\\u0000-\\u007F'
+        blocks = ''.join(('\u4E00-\u9FFF',  # CJK UNIFIED IDEOGRAPHS
+                        '\u3040-\u309F',  # HIRAGANA
+                        '\u30A0-\u30FF',  # KATAKANA
+                        '\u3000-\u303F',  # CJK SYMBOLS AND PUNCTUATION
+                        '\uFF00-\uFFEF'   # HALFWIDTH AND FULLWIDTH FORMS
+                        ))
+        basic_latin = '\u0000-\u007F'
 
         def remove_space_between(cls1, cls2, s):
             p = re.compile('([{}]) ([{}])'.format(cls1, cls2))
             while p.search(s):
-                s = p.sub(r'\\1\\2', s)
+                s = p.sub(r'\1\2', s)
             return s
 
         s = remove_space_between(blocks, blocks, s)
