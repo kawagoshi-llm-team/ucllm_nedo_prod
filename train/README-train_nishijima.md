@@ -229,7 +229,8 @@ Tokenizerはllm-jpのものを使用　./Ucllm_nedo_prod/train/scripts/dataset�
 (.venv) $ which python3-config
 
 # ~/ucllm_nedo_dev/train/Megatron-DeepSpeed/megatron/data/Makefileのpython3-configのパスを、上記のwhichコマンドで出力された絶対パスに変更。
-(.venv) $ vim ~/ucllm_nedo_dev/train/Megatron-DeepSpeed/megatron/data/Makefile
+# 上記作業は不要。逆にfp16をdisableにする。
+(.venv) $ vim ~/ucllm_nedo_dev/train/Megatron-DeepSpeed/megatron/data/Makefile 
 """
 # Before
 LIBEXT = $(shell python3-config --extension-suffix)
@@ -269,10 +270,53 @@ LIBEXT = $(shell /absolute/path/to/python3-config --extension-suffix)
 
 ### Step 3-1. トークナイザーと事前学習済みモデルのHuggingFace Transformers形式への変換
 
+
 ```sh
-(.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step3_upload_pretrained_model/
+#事前にファイルを以下にコピーする。
+from common (deepspeed_checkpoint.py, deepspeed_to_megatron.py, ds_to_unversal.py) to Megatron-DeepSpeed/tools/convert_checkpoint
+#以下は必要に応じてコピー。
+from common universal_checkpoint.py to deepspeed/checkpoint
+
+# TPが2以上の場合は次を実行。これでuniversal checkpointが作成される。zero stage2の場合は下に記載。
+(.venv) $ cd ~
+(.venv) $ bash python ucllm_nedo_dev/train/Megatron-DeepSpeed/tools/convert_checkpoint/ds_to_universal.py   \
+  --input_folder ../../persistentshare/storage/team_kawagoshi/nishijima/test_change_tpz/llama2-0.3B_tp1_pp1_zero1_v2/checkpoint/global_step_2200   \
+  --output_folder ../../persistentshare/storage/team_kawagoshi/nishijima/test_change_tpz/llama2-0.3B_tp1_pp1_zero1_v2/checkpoint/global_step2200_universal
+
+# TPが2以上の場合は次にtrainを通してlayer層を作成。実はこれは不要の可能性も。実行前にはskip_train=Trueに設定かつelseとして以下を記載。
+    else:
+        print_rank_0('skipping training (--skip-train is on) ...')
+
+        iteration = args.iteration
+        save_checkpoint(iteration, model, optimizer, opt_param_scheduler)
+
+(.venv) $　cd ~
+(.venv) $　cd ucllm_nedo_dev/train/scripts/step2_pretrain_model
+
+(.venv) $　bash ./convert_llama2.sh   \
+  --input_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/nishijima/test_change_tpz/llama2-0.3B_tp1_pp1_zero1_v2 \
+  --output_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/nishijima/changed_tpz/llama2-0.3B/111_to_220
+
+# zero stage2の場合は次に変換。ただし、TP>1では未確認
+ツリー構造を
+<pre>
+model_name
+├── checkpoint
+        ├── global_stepxxx
+                ├─ model_optim_rng.pt
+から
+model_name
+├── checkpoint
+        ├── iter_xxxxxxx
+        ├        ├─ mp_rank_00
+        ├               ├─ model_optim_rng.pt
+        ├── latest_checkpoint_iteration.txt
+
+</pre>
 
 # 変換スクリプトを実行。
+(.venv) $　cd ~
+(.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step3_upload_pretrained_model/
 (.venv) $ bash ./convert_toke_and_model_to_mega_to_hf.sh \
     --input_tokenizer_file ~/ucllm_nedo_dev/train/dataset/code10k_en20k_ja30k.ver2.1.model \
     --input_model_dir ../../../../../../persistentshare/storage/team_kawagoshi/${YourName}/llama2-0.3B/checkpoint/${Your_JobName}/ \

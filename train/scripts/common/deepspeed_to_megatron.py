@@ -155,7 +155,7 @@ def main():
     print(f'Convert DeepSpeed Checkpoint to Megatron Checkpoint')
 
     args = parse_arguments()
-    print(f'Converting DeepSpeed checkpoint in {args.input_folder} to Megatron checkpoint in {args.output_folder}')
+    print(f'Converting DeepSpeed checkpoint in {args.input_folder} to Megatron checkpoint in {args.output_folder}, {args.target_tp}, {args.target_pp}')
 
     ds_checkpoint = DeepSpeedCheckpoint(args.input_folder, args.target_tp, args.target_pp)
     iteration = ds_checkpoint.get_iteration()
