@@ -5,6 +5,8 @@ import difflib
 import MeCab
 import argparse
 import unicodedata
+import multiprocessing
+import subprocess
 from abc import ABC, abstractmethod
 from tqdm import tqdm
 from collections import Counter
@@ -15,11 +17,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Preprocess dataset')
     parser.add_argument('--input_file', type=str, required=True, help='Input file path')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
-    parser.add_argument('--min_doc_len', type=int, default=30, help='Minimum document length')
+    parser.add_argument('--min_doc_len', type=int, default=50, help='Minimum document length')
     parser.add_argument('--max_doc_len', type=int, default=50000, help='Maximum document length')
     parser.add_argument('--symbol_noun_ratio', type=float, default=0.7, help='Maximum ratio of symbols and nouns')
     parser.add_argument('--unwanted_strings_file', type=str, default='unwanted_strings.json', help='JSON file containing unwanted strings')
+    parser.add_argument('--workers', type=int, default=multiprocessing.cpu_count(), help='Number of worker processes')
     return parser.parse_args()
+
 
 class Processer(ABC):
     def __init__(self):
@@ -30,17 +34,41 @@ class Processer(ABC):
         self.data = data
         pass
 
+
 class DatasetPreprocessor(Processer):
     def __init__(self, args):
         self.args = args
-        self.tagger = MeCab.Tagger("")
+
+    @property
+    def tagger(self):
+        return MeCab.Tagger("")
 
     def _load_unwanted_strings(self, file_path) -> dict:
         with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
 
-    def process_dataset(self):
+    def _process_line(self, line, unwanted_strings_dict):
+        # Load the JSON data from the line
+        data = json.loads(line)
+        paragraph = data['text']
 
+        # Process the paragraph
+        processed_paragraph = ParagraphProcesser(paragraph, self.args.min_doc_len, self.args.max_doc_len).execute()
+
+        if processed_paragraph is None:
+            return None
+
+        # Process sentences in the paragraph
+        processed_sentences = SentenceProcesser(processed_paragraph, self.args.symbol_noun_ratio, unwanted_strings_dict, self.tagger).execute()
+
+        # Return the processed sentences if not empty
+        if processed_sentences:
+            data['text'] = ''.join(processed_sentences)
+            return json.dumps(data, ensure_ascii=False)
+        else:
+            return None
+
+    def process_dataset(self):
         # Load unwanted strings from the specified file
         unwanted_strings_dict = self._load_unwanted_strings(self.args.unwanted_strings_file)
 
@@ -54,8 +82,11 @@ class DatasetPreprocessor(Processer):
 
         # Open the input file, output file, and rejected file
         with open(self.args.input_file, 'r', encoding='utf-8') as infile, \
-             open(output_processed_file_path, 'a' if progress else 'w', encoding='utf-8') as outfile, \
-             open(output_rejected_file_path, 'a' if progress else 'w', encoding='utf-8') as rejected_outfile:
+            open(output_processed_file_path, 'a' if progress else 'w', encoding='utf-8') as outfile, \
+            open(output_rejected_file_path, 'a' if progress else 'w', encoding='utf-8') as rejected_outfile:
+
+            # Create a process pool with the specified number of worker processes
+            pool = multiprocessing.Pool(processes=self.args.workers)
 
             # Iterate over the lines in the input file with progress tracking
             for line_num, line in enumerate(tqdm(infile, desc="Processing lines", initial=progress, total=progress+1)):
@@ -63,31 +94,23 @@ class DatasetPreprocessor(Processer):
                 if line_num < progress:
                     continue
 
-                # Load the JSON data from the line
-                data = json.loads(line)
-                paragraph = data['text']
+                # Process the line using the process pool
+                result = pool.apply_async(self._process_line, args=(line, unwanted_strings_dict))
 
-                # Process the paragraph
-                processed_paragraph = ParagraphProcesser(paragraph, self.args.min_doc_len, self.args.max_doc_len).execute()
-
-                if processed_paragraph is None:
-                    rejected_outfile.write(line)
-                    continue
-
-                # Process sentences in the paragraph
-                processed_sentences = SentenceProcesser(processed_paragraph, self.args.symbol_noun_ratio, unwanted_strings_dict, self.tagger).execute()
-
-                # Write the processed sentences to the output file if not empty
-                if processed_sentences:
-                    data['text'] = ''.join(processed_sentences)
-                    outfile.write(json.dumps(data, ensure_ascii=False) + '\n')
-
+                # Write the processed line to the output file or rejected file
+                processed_line = result.get()
+                if processed_line is not None:
+                    outfile.write(processed_line + '\n')
                 else:
                     rejected_outfile.write(line)
 
                 # Save progress every 1000 lines
                 if line_num % 1000 == 0:
                     self._save_progress(self.args.output_dir, input_file_prefix_path, line_num + 1)
+
+            # Close the process pool
+            pool.close()
+            pool.join()
 
         # Save the final progress
         self._save_progress(self.args.output_dir, input_file_prefix_path, line_num + 1)
@@ -113,10 +136,9 @@ class DatasetPreprocessor(Processer):
             with open(progress_file_path, 'r', encoding='utf-8') as file:
                 return int(file.read().strip())
         return 0
-    
-    def execute(self):
-        pass
 
+    def execute(self):
+        self.process_dataset()
 
 
 class ParagraphProcesser(Processer):
@@ -143,6 +165,7 @@ class ParagraphProcesser(Processer):
             return None
         self.data = self.exec_normalize_contents()
         return self.data
+    
 
 class SentenceProcesser(Processer):
     def __init__(self, data, symbol_noun_ratio, unwanted_strings, tagger):
@@ -151,10 +174,16 @@ class SentenceProcesser(Processer):
         self.unwanted_strings = unwanted_strings
         self.tagger = tagger
 
-    def _delete_strange_sentence(self, sentence):
-        """③ 文章として成り立っていないものの削除"""
-        return TextCleaner.do_clean(sentence)
-
+    def _delete_short_sentence(self, sentence):
+        """③ 1文が10文字以下の文を削除"""
+        if len(sentence) <= 10:
+            return None
+        return sentence
+    
+    def _delete_high_noun_rate_sentence(self, sentence):
+        """⑤ 記号・名詞割合が高い文章の除去"""
+        return TextFilter.filter_line(sentence, self.tagger, self.symbol_noun_ratio)
+    
     def _delete_NG_sentence(self, sentence):
         """④ NGコンテンツの除去"""
         cleaner = Compose([
@@ -166,38 +195,37 @@ class SentenceProcesser(Processer):
         ])
         return cleaner.apply(Document(sentence)).text
 
-    def _delete_high_noun_rate_sentence(self, sentence):
-        """⑤ 記号・名詞割合が高い文章の除去"""
-        return TextFilter.filter_line(sentence, self.tagger, self.symbol_noun_ratio)
-
     def _delete_other_stranges(self, sentence):
         """⑥ その他消したい文字列の削除"""
         for unwanted_string in self.unwanted_strings["unwanted_word"]:
             if unwanted_string in sentence:
                 return None
-            else:
-                return sentence
+        return sentence
 
     def execute(self):
         processed_sentences = []
+        
+        non_english_chars = r'[^a-zA-Z]'
+        self.data = re.sub(f'({non_english_chars})\n({non_english_chars})', r'\1。\2', self.data)
 
         sentences = re.findall(r'[^。！？]*[。！？]', self.data)
-
+            
         for sentence in sentences:
             sentence = sentence.strip()
-            sentence = self._delete_strange_sentence(sentence)
+            sentence = self._delete_short_sentence(sentence) 
             if sentence is None:
                 continue
-            sentence = self._delete_NG_sentence(sentence)
             sentence = self._delete_high_noun_rate_sentence(sentence)
             if sentence is None:
                 continue
+            sentence = self._delete_NG_sentence(sentence)
             sentence = self._delete_other_stranges(sentence)
             if sentence is None:
                 continue
             processed_sentences.append(sentence)
 
         return processed_sentences
+
 
 class TextNormalizer:
     @staticmethod
@@ -252,6 +280,8 @@ class TextNormalizer:
         s = re.sub('[”]', '"', s)
         # Replace consecutive "w" characters with "。"
         s = re.sub(r'w{2,}', '。', s)
+        # remove header-like
+        s = re.sub(r'【[^】]*】', '', s)
 
         return s
 
@@ -284,16 +314,19 @@ class TextCleaner:
     def do_clean(text: str, ws_threshold=1):
         if not TextCleaner.contains_hiragana(text):
             return None
-        sentences = text.split('\n')
+
+        non_english_chars = r'[^a-zA-Z]'
+        text = re.sub(f'({non_english_chars})\n({non_english_chars})', r'\1。\2', text)
+    
+        sentences = re.findall(r'[^。！？]*[。！？]', text)
+
         results = []
         for sent in sentences:
-            if not sent or TextCleaner.count_whitespaces(sent) >= ws_threshold or \
-               sent.endswith((",", "...", "\"", "'")) or \
-               not any(sent.endswith(p) for p in (".", "。", ")", "!", "！", "?", "？")) and \
-               not (sent and TextCleaner.is_closing_brace(sent[-1])):
+            sent = sent.strip()
+            if not sent or TextCleaner.count_whitespaces(sent) >= ws_threshold:
                 continue
             results.append(sent)
-        return "\n".join(results) if results else None
+        return "".join(results) if results else None
 
 class TextFilter:
     @staticmethod
