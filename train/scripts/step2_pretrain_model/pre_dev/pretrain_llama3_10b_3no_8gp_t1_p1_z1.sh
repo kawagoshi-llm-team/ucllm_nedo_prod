@@ -36,7 +36,7 @@ zero_stage=1
 no_pp="false"
 ## Total number of GPUs.
 num_gpus_pernode=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-num_node=2 #"${NHOSTS}"
+num_node="${NHOSTS}"
 echo "num_node = ${num_node}"
 
 num_gpus=$((${num_gpus_pernode} * ${num_node}))

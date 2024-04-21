@@ -188,6 +188,55 @@ Tokenizerはllm-jpのものを使用　./Ucllm_nedo_prod/train/scripts/dataset�
 
 ## Step 2. モデルの事前学習
 
+###　事前学習前にすること
+# データのshuffle処理が自動実行されるため、https://github.com/microsoft/Megatron-DeepSpeed/blob/main/megatron/data/gpt_dataset.pyの中で、np_rng.shuffleという処理が３回行われるので、そこをコメントアウトすることで、shuffleを防ぐ。
+
+# また、マルチノード使用時はssh関連を設定する
+
+```jsx
+cd
+mkdir ~/.ssh
+chmod 700 ~/.ssh
+touch "${HOME}/.ssh/known_hosts"
+
+#ssh keyの作製
+ssh-keygen -t ed25519-sk -C "your_email@example.com"
+#自分自身のpubkeyを､authorized_keysにいれる
+#pubkeyの表示
+cat ~/.ssh/id_ed25519.pub
+
+#pubkeyの内容を反映させる
+echo "<公開鍵の内容>" >> ~/.ssh/authorized_keys
+```
+
+# bashrcの更新
+
+# .ssh configを作成 (https://github.com/matsuolab/ucllm_nedo_prod/blob/main/train/scripts/common/create_ssh_config_file_for_gcp_play_multi_node_multi_gpu.shのスクリプトをコピペしたものです)
+#以下shファイルを作って実行する(node条件を変えたら再実行する必要あり)
+
+# 親ノードが各ノードにパスフレーズなしでSSHアクセスできるように設定した~/.ssh/configファイルを作成。
+nodes=$(scontrol show hostnames $SLURM_JOB_NODELIST)
+
+
+ssh_config_file="${HOME}/.ssh/config"
+echo "" > "${ssh_config_file}" 
+
+for node in $nodes; do
+    # Update the known_hosts file for each node, removing old keys
+    ssh-keygen -f "${HOME}/.ssh/known_hosts" -R "$node"
+    # Add new node configuration to the SSH configuration file
+    echo "Host $node" >> "${ssh_config_file}"
+    echo "    HostName $node" >> "${ssh_config_file}"
+    echo "    Port 22" >> "${ssh_config_file}"
+    echo "    StrictHostKeyChecking no" >> "${ssh_config_file}"
+    echo "" >> "${ssh_config_file}"
+done
+
+echo "SSH configuration has been updated."
+cat ${ssh_config_file}
+
+# また、pretrainファイルのcondaパス(282行目)を自分のcondaに書き換える。
+
 ### Step 2-1. 事前学習の実行
 
 ```sh
@@ -301,16 +350,16 @@ from common universal_checkpoint.py to deepspeed/checkpoint
 ツリー構造を
 <pre>
 model_name
-├── checkpoint
-        ├── global_stepxxx
-                ├─ model_optim_rng.pt
+└── checkpoint
+        └── global_stepxxx
+                └─ model_optim_rng.pt
 から
 model_name
-├── checkpoint
+└── checkpoint
         ├── iter_xxxxxxx
-        ├        ├─ mp_rank_00
-        ├               ├─ model_optim_rng.pt
-        ├── latest_checkpoint_iteration.txt
+        ├        └─ mp_rank_00
+        ├               └─ model_optim_rng.pt
+        └── latest_checkpoint_iteration.txt
 
 </pre>
 
@@ -351,17 +400,19 @@ model_name
 ## Step 4. モデルのファインチューニング
 
 ### Step 4-1. ファインチューニングの実行
+#使用するデータセットの追加が必要。
+
 
 ```sh
 (.venv) $ cd ~/ucllm_nedo_dev/train/scripts/step4_finetune_model/
 
 # ファインチューニングスクリプトを実行。 (HuggingFaceにアップロードした事前学習モデルをダウンロードして使用する場合)
-(.venv) $ bash ./gcp_play_node-1_gpu/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-none_zero-none.sh --input_model_name_or_path ${YOUR_HUGGINGFACE_USERNAME}/gpt_0.125B_global_step1000 \
-    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
+(.venv) $ bash ./pre_dev/train_ja_1node.sh --input_model_name_or_path ${YOUR_HUGGINGFACE_USEandMODELRNAME} \
+    --output_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
 
 # ファインチューニングスクリプトを実行。 (ローカルに保存してある事前学習モデルをそのまま使用する場合)
-(.venv) $ bash ./gcp_play_node-1_gpu/dataset-openassistant_tokenizer-sentencepiece_model-gpt_0.125B/launcher-none_zero-none.sh --input_model_name_or_path ~/ucllm_nedo_dev/train/output/step3_upload_pretrained_model/gpt_0.125B_global_step1000/ \
-    --output_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
+(.venv) $ bash ./pre_dev/train_ja_1node.sh --input_model_name_or_path ~/ucllm_nedo_dev/train/output/step3_upload_pretrained_model/gpt_0.125B_global_step1000/ \
+    --output_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/
 ```
 
 ## Step 5. ファインチューニング済みモデルのアップロード
@@ -378,5 +429,5 @@ model_name
 (.venv) $ python ./upload_tokenizer_and_finetuned_model_to_huggingface_hub.py \
     --input_tokenizer_and_model_dir ~/ucllm_nedo_dev/train/output/step4_finetune_model/gpt_0.125B_global_step1000_openassistant/ \
     --output_model_name gpt_0.125B_global_step1000_openassistant \
-    --test_prompt_text "Once upon a time,"
+    --test_prompt_text "<s>[INST] <<SYS>>\nあなたは日本語で返答する優秀なAIアシスタントです。\n<</SYS>>\n\n apple watchでできることリストを教えてください。[/INST]"
 ```
