@@ -11,7 +11,7 @@ set -ex
 
 ######################################
 # Change the below configurations here
-ucllm_nedo_dev_train_dir="/strage2/output"
+ucllm_nedo_dev_train_dir="/storage2/ucllm_nedo_prod/train"
 megatron_deepspeed_dir="${ucllm_nedo_dev_train_dir}/Megatron-DeepSpeed"
 echo "ucllm_nedo_dev_train_dir = ${ucllm_nedo_dev_train_dir}"
 echo "megatron_deepspeed_dir = ${megatron_deepspeed_dir}"
@@ -19,6 +19,7 @@ echo ""
 
 save_interval=1000
 
+output_model_dir="/strage2/output"
 # Modifies the arguments.
 output_model_dir="${output_model_dir%/}"  # Removes a trailing slash "/" if it exists.
 
@@ -49,9 +50,9 @@ log_optimizer_state="true"
 ### Output and data configs
 current_time=$(date "+%Y.%m.%d_%H.%M.%S")
 seed=1234
-#num_workers=0
-MASTER_ADDR=localhost
-MASTER_PORT=6000
+num_workers=0
+#MASTER_ADDR=localhost
+#MASTER_PORT=6000
 host="${HOSTNAME}"
 NODE_RANK=${SLURM_NODEID}
 
@@ -190,6 +191,7 @@ data_options=" \
 exit_duration=300000000000
 
 megatron_options=" \
+    --num-workers ${num_workers} \
     --override-opt_param-scheduler \
     --tensor-model-parallel-size ${mp_size} \
     --pipeline-model-parallel-size ${pp_size} \

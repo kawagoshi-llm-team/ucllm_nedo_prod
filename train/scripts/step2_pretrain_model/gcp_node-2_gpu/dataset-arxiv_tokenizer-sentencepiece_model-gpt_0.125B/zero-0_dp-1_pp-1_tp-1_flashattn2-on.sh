@@ -4,7 +4,7 @@ set -e
 echo ""
 
 # Stores the directory paths as variables.
-ucllm_nedo_dev_train_dir="${HOME}/ucllm_nedo_dev/train"
+ucllm_nedo_dev_train_dir="/storage2/ucllm_nedo_prod/train"
 megatron_deepspeed_dir="${ucllm_nedo_dev_train_dir}/Megatron-DeepSpeed"
 echo "ucllm_nedo_dev_train_dir = ${ucllm_nedo_dev_train_dir}"
 echo "megatron_deepspeed_dir = ${megatron_deepspeed_dir}"
@@ -14,6 +14,8 @@ echo ""
 input_tokenizer_file=""
 output_model_dir=""
 save_interval=1000
+wandb_entity=""
+wandb_project=""
 
 # Parses the arguments.
 while [[ ${#} -gt 0 ]]; do
@@ -22,6 +24,8 @@ while [[ ${#} -gt 0 ]]; do
         --input_tokenizer_file) input_tokenizer_file=${2}; shift ;;
         --output_model_dir) output_model_dir=${2}; shift ;;
         --save_interval) save_interval=${2}; shift ;;
+        --wandb_entity) wandb_entity=${2}; shift ;;
+        --wandb_project) wandb_project=${2}; shift ;;
         *) echo "Unknown parameter passed: ${1}"; exit 1 ;;
     esac
     # Shifts once per loop to move to the next key/value.
@@ -29,9 +33,9 @@ while [[ ${#} -gt 0 ]]; do
 done
 
 # Checks the required arguments.
-if [[ -z ${input_tokenizer_file} ]] || [[ -z ${output_model_dir} ]]; then
+if [[ -z ${input_tokenizer_file} ]] || [[ -z ${output_model_dir} ]] || [[ -z ${save_interval} ]] || [[ -z ${wandb_entity} ]] || [[ -z ${wandb_project} ]]; then
     echo "Error: Missing required arguments."
-    echo "Usage: ${0} --input_tokenizer_file <input_tokenizer_file> --output_model_dir <output_model_dir>"
+    echo "Usage: ${0} --input_tokenizer_file <input_tokenizer_file> --output_model_dir <output_model_dir> --save_interval <save_interval> --wandb_entity <wandb_entity> --wandb_project <wandb_project>"
     exit 1
 fi
 
@@ -42,6 +46,8 @@ output_model_dir="${output_model_dir%/}"  # Removes a trailing slash "/" if it e
 echo "input_tokenizer_file = ${input_tokenizer_file}"
 echo "output_model_dir = ${output_model_dir}"
 echo "save_interval = ${save_interval}"
+echo "wandb_entity = ${wandb_entity}"
+echo "wandb_project = ${wandb_project}"
 echo ""
 
 ###############################################################################
@@ -384,6 +390,15 @@ if [[ $iteration -gt 0 ]]; then
     ds_ssh "echo $iteration_2 > $iteration_file_2"
 fi
 
+# W&B options.
+# Note: the W&B options use "underscore" (like `--use_wandb`) instead of "hyphen" (like `--use-wandb`).
+# Note: the W&B group name `--wandb_group` should be less than 128 characters.
+wandb_options=" \
+    --use_wandb \
+    --wandb_entity ${wandb_entity} \
+    --wandb_project ${wandb_project} \
+    --wandb_group pretrain_gpt_${model_size}B_${host}_${current_time}"
+
 # Creates a hostfile.
 script_dir=$(dirname "$0")
 hostfile="${script_dir}/hostfile_jobid-${SLURM_JOB_ID}"
@@ -394,7 +409,7 @@ do
   gpu_count=$(ssh ${node} "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l")
   echo "${node} slots=${gpu_count}"
   ssh $node "source ~/.bashrc"
-  ssh $node 'source ~/miniconda3/etc/profile.d/conda.sh && conda activate .venv'
+  ssh $node 'source /storage2/miniconda3/etc/profile.d/conda.sh && conda activate .venv'
 done > "${hostfile}"
 
 echo "hostfile = ${hostfile}"
