@@ -2,3 +2,6 @@ pipeline/dataset/
 pipeline/processed_dataset/
 fastText/
 .venv
+data_management/preprocessing/dataset/*
+pipeline/step00_download_datasets/output/*
+data_management/preprocessing/preprocessed_dataset/*
