@@ -1,3 +1,4 @@
 pipeline/dataset/
 pipeline/processed_dataset/
 fastText/
+.venv
